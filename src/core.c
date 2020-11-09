@@ -25,6 +25,7 @@
 int urandom_bytes(unsigned char *arr, unsigned int rc){
 	FILE *udr = fopen("/dev/urandom", "rb");
 	fread(arr, 1, rc, udr);
+	fclose(udr);
 	return 0;
 }
 

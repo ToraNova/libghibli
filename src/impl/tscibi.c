@@ -21,109 +21,145 @@
  */
 
 #include <string.h>
-#include <assert.h>
 #include <sodium.h>
+#include <assert.h>
 #include "../utils/bufhelp.h"
 #include "../utils/debug.h"
 #include "sodium_macro.h"
 #include "ibi.h"
 
-#define __SCHIBI_CMTLEN 2*RRE
-#define __SCHIBI_CHALEN RRS
-#define __SCHIBI_RESLEN RRS
+#define __TSCIBI_CMTLEN 3*RRE
+#define __TSCIBI_CHALEN RRS
+#define __TSCIBI_RESLEN RRS
 
-struct __schibi_pk {
-	unsigned char *A;
+struct __tscibi_pk {
+	unsigned char *A; //y = aB
+	unsigned char *A2; //y2 = aB2
+	unsigned char *B2; //second base
 };
 
-struct __schibi_sk {
-	struct __schibi_pk *pub;
+struct __tscibi_sk {
+	struct __tscibi_pk *pub;
 	unsigned char *a;
 };
 
-struct __schibi_sg {
+struct __tscibi_sg {
 	unsigned char *s;
 	unsigned char *x;
 	unsigned char *U; //precomputation
+	unsigned char *V; //precomputation
 };
 
 //prover and verifier protocol states
-struct __schibi_prvst {
+struct __tscibi_prvst {
 	unsigned char *s;
-	unsigned char *U; //precomputation
+	unsigned char *U; //precomputation 1
+	unsigned char *V; //precomputation 2
 	unsigned char *nonce;
 	unsigned char *mbuf;
 	size_t mlen;
 };
 
-struct __schibi_verst {
+struct __tscibi_verst {
 	unsigned char *A;
+	unsigned char *A2;
+	unsigned char *B2;
 	unsigned char *c;
-	unsigned char *U; //precompute
-	unsigned char *V; //nonceB
+	unsigned char *U; //precompute1
+	unsigned char *V; //precompute2
+	unsigned char *W; //nonceB
 	unsigned char *mbuf;
 	size_t mlen;
 };
 
-void __schibi_prvstfree(void *state){
-	struct __schibi_prvst *tmp = (struct __schibi_prvst *)state; //parse state
+//TODO: not done with freeing
+void __tscibi_prvstfree(void *state){
+	struct __tscibi_prvst *tmp = (struct __tscibi_prvst *)state; //parse state
 	sodium_free(tmp->s);
 	sodium_free(tmp->nonce);
 	memset(tmp->U, 0, RRE);//clear and free
 	free(tmp->U);
-	free(tmp->mbuf);
-	free(tmp);
-}
-
-void __schibi_verstfree(void *state){
-	struct __schibi_verst *tmp = (struct __schibi_verst *)state; //parse state
-	free(tmp->A);
-	free(tmp->c);
-	free(tmp->U);
+	memset(tmp->V, 0, RRE);//clear and free
 	free(tmp->V);
 	free(tmp->mbuf);
 	free(tmp);
 }
 
-void __schibi_randkeygen(void **out){
+void __tscibi_verstfree(void *state){
+	struct __tscibi_verst *tmp = (struct __tscibi_verst *)state; //parse state
+	free(tmp->A);
+	free(tmp->A2);
+	free(tmp->B2);
+	free(tmp->c);
+	free(tmp->U);
+	free(tmp->V);
+	free(tmp->W);
+	free(tmp->mbuf);
+	free(tmp);
+}
+
+void __tscibi_randkeygen(void **out){
 	//declare and allocate memory for key
-	int rc; struct __schibi_sk *tmp;
-	tmp = (struct __schibi_sk *)malloc( sizeof(struct __schibi_sk) );
+	int rc; struct __tscibi_sk *tmp;
+	tmp = (struct __tscibi_sk *)malloc( sizeof(struct __tscibi_sk) );
 	//allocate memory for pubkey
-	tmp->pub = (struct __schibi_pk *)malloc( sizeof(struct __schibi_pk) );
+	tmp->pub = (struct __tscibi_pk *)malloc( sizeof(struct __tscibi_pk) );
 	unsigned char neg[RRS];
 
 	tmp->a = (unsigned char *)sodium_malloc( RRS );
 	tmp->pub->A = (unsigned char *)malloc( RRE );
+	tmp->pub->A2 = (unsigned char *)malloc( RRE );
+	tmp->pub->B2 = (unsigned char *)malloc( RRE );
 
 	//sample secret a
 	crypto_core_ristretto255_scalar_random( tmp->a );
-
-	crypto_core_ristretto255_scalar_negate(neg , tmp->a);
 	rc = crypto_scalarmult_ristretto255_base(
+			tmp->pub->B2,
+			tmp->a
+			); // create a new base 2
+
+	//sample actual secret
+	crypto_core_ristretto255_scalar_random( tmp->a );
+	crypto_core_ristretto255_scalar_negate(neg , tmp->a);
+	rc += crypto_scalarmult_ristretto255_base(
 			tmp->pub->A,
 			neg
 			); // A = aB
+
+
+	rc += crypto_scalarmult_ristretto255(
+			tmp->pub->A2,
+			neg,
+			tmp->pub->B2
+			); // A2 = aB2
+
 	assert(rc == 0);
 
 	//recast and return
 	*out = (void *) tmp;
 }
 
-void __schibi_getpubkey(void *vkey, void **out){
-	struct __schibi_pk *tmp;
-	struct __schibi_sk *key = ((struct __schibi_sk *)vkey);
-	tmp = (struct __schibi_pk *)malloc( sizeof(struct __schibi_pk) );
+void __tscibi_getpubkey(void *vkey, void **out){
+	struct __tscibi_pk *tmp;
+	struct __tscibi_sk *key = ((struct __tscibi_sk *)vkey);
+	tmp = (struct __tscibi_pk *)malloc( sizeof(struct __tscibi_pk) );
 	tmp->A = (unsigned char *)malloc( RRE );
-	copyskip(tmp->A, key->pub->A, 0, RRE);
+	tmp->A2 = (unsigned char *)malloc( RRE );
+	tmp->B2 = (unsigned char *)malloc( RRE );
+
+	copyskip(tmp->A, key->pub->A,  	0, RRE);
+	copyskip(tmp->A2, key->pub->A2, 0, RRE);
+	copyskip(tmp->B2, key->pub->B2, 0, RRE);
 	*out = (void *)tmp;
 }
 
 //assumes arr is alloc with RRS
-void __schibi_hashexec(
+void __tscibi_hashexec(
 	const unsigned char *mbuf, size_t mlen,
 	unsigned char *ubuf,
 	unsigned char *vbuf,
+	unsigned char *wbuf,
+	unsigned char *xbuf,
 	unsigned char *oarr
 ){
 	crypto_hash_sha512_state state;
@@ -133,22 +169,24 @@ void __schibi_hashexec(
 	crypto_hash_sha512_update( &state, mbuf, mlen);
 	crypto_hash_sha512_update( &state, ubuf, RRE);
 	crypto_hash_sha512_update( &state, vbuf, RRE);
+	crypto_hash_sha512_update( &state, wbuf, RRE);
+	crypto_hash_sha512_update( &state, xbuf, RRE);
 	crypto_hash_sha512_final( &state, tbuf);
 	crypto_core_ristretto255_scalar_reduce(
 		oarr, (const unsigned char *)tbuf
 	);
 }
 
-void __schibi_signatgen(
+void __tscibi_signatgen(
 	void *vkey,
 	const unsigned char *mbuf, size_t mlen,
 	void **out
 ){
 	//key recast
-	int rc; struct __schibi_sg *tmp;
-	struct __schibi_sk *key = (struct __schibi_sk *)vkey;
+	int rc; struct __tscibi_sg *tmp;
+	struct __tscibi_sk *key = (struct __tscibi_sk *)vkey;
 	//declare and allocate for signature struct
-	tmp = (struct __schibi_sg *)malloc( sizeof( struct __schibi_sg) );
+	tmp = (struct __tscibi_sg *)malloc( sizeof( struct __tscibi_sg) );
 
 	//--------------------------TODO START
 	//nonce, r and hash
@@ -158,6 +196,7 @@ void __schibi_signatgen(
 	tmp->s = (unsigned char *)sodium_malloc( RRS );
 	tmp->x = (unsigned char *)sodium_malloc( RRS );
 	tmp->U = (unsigned char *)malloc( RRE );
+	tmp->V = (unsigned char *)malloc( RRE );
 
 	//sample r (MUST RANDOMIZE, else secret key a will be exposed)
 	crypto_core_ristretto255_scalar_random(nonce);
@@ -166,9 +205,15 @@ void __schibi_signatgen(
 			tmp->U,
 			nonce
 			); // U = rB
-	assert(rc == 0);
 
-	__schibi_hashexec(mbuf, mlen, tmp->U, key->pub->A, tmp->x);
+	rc += crypto_scalarmult_ristretto255(
+			tmp->V,
+			nonce,
+			key->pub->B2
+			); // V = rP1
+	assert( rc == 0);
+
+	__tscibi_hashexec(mbuf, mlen, tmp->U, tmp->V, key->pub->A, key->pub->A2, tmp->x);
 
 	// s = r + xa
 	crypto_core_ristretto255_scalar_mul( tmp->s , tmp->x, key->a );
@@ -178,7 +223,7 @@ void __schibi_signatgen(
 	*out = (void *) tmp;
 }
 
-void __schibi_signatchk(
+void __tscibi_signatchk(
 	void *vpar,
 	void *vsig,
 	const unsigned char *mbuf, size_t mlen,
@@ -186,14 +231,15 @@ void __schibi_signatchk(
 ){
 	//key recast
 	unsigned char xp[RRS];
-	struct __schibi_pk *par = (struct __schibi_pk *)vpar;
-	struct __schibi_sg *sig = (struct __schibi_sg *)vsig;
+	struct __tscibi_pk *par = (struct __tscibi_pk *)vpar;
+	struct __tscibi_sg *sig = (struct __tscibi_sg *)vsig;
 
 	//--------------------------TODO START
 	unsigned char tmp1[RRE]; //tmp array
 	unsigned char tmp2[RRE]; //tmp array
+	unsigned char tmp3[RRE]; //tmp array
 
-	// U' = sB - A
+	// U' = sB - xP1
 	*res = crypto_scalarmult_ristretto255_base(
 			tmp1,
 			sig->s
@@ -203,74 +249,90 @@ void __schibi_signatchk(
 			sig->x,
 			par->A
 			);
-	*res += crypto_core_ristretto255_add( tmp1, tmp1, tmp2 ); //tmp3 U'
+	*res += crypto_core_ristretto255_add( tmp3, tmp1, tmp2 ); //tmp3 U'
 
-	__schibi_hashexec(mbuf, mlen, tmp1, par->A, xp);
+	// V' = sP1 - xP2
+	*res += crypto_scalarmult_ristretto255(
+			tmp1,
+			sig->s,
+			par->B2
+			);
+	*res += crypto_scalarmult_ristretto255(
+			tmp2,
+			sig->x,
+			par->A2
+			);
+	*res += crypto_core_ristretto255_add( tmp2, tmp1, tmp2 ); //tmp4 V'
 
-	//check if hash is equal to x from vsig
+	__tscibi_hashexec(mbuf, mlen, tmp3, tmp2, par->A, par->A2, xp);
+
+	//check if tmp is equal to x from obuffer
 	*res += crypto_verify_32( xp, sig->x );
 	//--------------------------TODO END
 }
 
 //destroy secret key
-void __schibi_pkfree(void *in){
+void __tscibi_pkfree(void *in){
 	//key recast
-	struct __schibi_pk *ri = (struct __schibi_pk *)in;
+	struct __tscibi_pk *ri = (struct __tscibi_pk *)in;
 	//free up memory
 	free(ri->A);
+	free(ri->A2);
+	free(ri->B2);
 	free(ri);
 }
 
-void __schibi_skfree(void *in){
+void __tscibi_skfree(void *in){
 	//key recast
-	struct __schibi_sk *ri = (struct __schibi_sk *)in;
+	struct __tscibi_sk *ri = (struct __tscibi_sk *)in;
 	//zero out the secret component
 	sodium_memzero(ri->a, RRS);
 
 	//free memory
 	sodium_free(ri->a);
-	__schibi_pkfree(ri->pub);
+	__tscibi_pkfree(ri->pub);
 	free(ri);
 }
 
-void __schibi_sgfree(void *in){
+void __tscibi_sgfree(void *in){
 	//key recast
-	struct __schibi_sg *ri = (struct __schibi_sg *)in;
+	struct __tscibi_sg *ri = (struct __tscibi_sg *)in;
 	//clear the components
-	//sodium_memzero(ri->s, RRS);
-	//sodium_memzero(ri->x, RRS);
 	sodium_memzero(ri->U, RRE);
-	//free memory
+	sodium_memzero(ri->V, RRE);
 	sodium_free(ri->s);
 	sodium_free(ri->x);
-	//free(ri->x);
 	free(ri->U);
+	free(ri->V);
 	free(ri);
 }
 
 //debugging use only
-void __schibi_pkprint(void *in){
-	struct __schibi_pk *ri = (struct __schibi_pk *)in;
+void __tscibi_pkprint(void *in){
+	struct __tscibi_pk *ri = (struct __tscibi_pk *)in;
 	printf("A :"); ucbprint(ri->A, RRE); printf("\n");
+	printf("A2:"); ucbprint(ri->A2, RRE); printf("\n");
+	printf("B2:"); ucbprint(ri->B2, RRE); printf("\n");
 }
 
-void __schibi_skprint(void *in){
-	struct __schibi_sk *ri = (struct __schibi_sk *)in;
+void __tscibi_skprint(void *in){
+	struct __tscibi_sk *ri = (struct __tscibi_sk *)in;
 	printf("a :"); ucbprint(ri->a, RRS); printf("\n");
-	__schibi_pkprint((void *)ri->pub);
+	__tscibi_pkprint((void *)ri->pub);
 }
 
-void __schibi_sgprint(void *in){
-	struct __schibi_sg *ri = (struct __schibi_sg *)in;
+void __tscibi_sgprint(void *in){
+	struct __tscibi_sg *ri = (struct __tscibi_sg *)in;
 	printf("s :"); ucbprint(ri->s, RRS); printf("\n");
 	printf("x :"); ucbprint(ri->x, RRS); printf("\n");
 	printf("U :"); ucbprint(ri->U, RRE); printf("\n");
+	printf("V :"); ucbprint(ri->V, RRE); printf("\n");
 }
 
-void __schibi_prvinit(void *vusk, const unsigned char *mbuf, size_t mlen, void **state){
-	struct __schibi_sg *usk = (struct __schibi_sg *)vusk; //parse usk
-	struct __schibi_prvst *tmp;
-	tmp = (struct __schibi_prvst *)malloc(sizeof(struct __schibi_prvst));
+void __tscibi_prvinit(void *vusk, const unsigned char *mbuf, size_t mlen, void **state){
+	struct __tscibi_sg *usk = (struct __tscibi_sg *)vusk; //parse usk
+	struct __tscibi_prvst *tmp;
+	tmp = (struct __tscibi_prvst *)malloc(sizeof(struct __tscibi_prvst));
 
 	//allocate and copy for mbuf
 	tmp->mbuf = (unsigned char *)malloc(mlen);
@@ -282,13 +344,15 @@ void __schibi_prvinit(void *vusk, const unsigned char *mbuf, size_t mlen, void *
 	memcpy( tmp->s, usk->s, RRS);
 	tmp->U = (unsigned char *)malloc(RRE);
 	memcpy( tmp->U, usk->U, RRE); //x is not copied as it is not needed
+	tmp->V = (unsigned char *)malloc(RRE);
+	memcpy( tmp->V, usk->V, RRE); //x is not copied as it is not needed
 
 	*state = (void *)tmp; //recast and return
 }
 
 //mbuf and mlen unused in this case, but generally it could be used
-void __schibi_cmtgen(void **state, unsigned char **cmt){
-	struct __schibi_prvst *tmp = (struct __schibi_prvst *)(*state); //parse state
+void __tscibi_cmtgen(void **state, unsigned char **cmt){
+	struct __tscibi_prvst *tmp = (struct __tscibi_prvst *)(*state); //parse state
 
 	unsigned char tbuf[RRE]; int rc;
 	tmp->nonce = (unsigned char *)sodium_malloc(RRS); //allocate nonce
@@ -297,28 +361,29 @@ void __schibi_cmtgen(void **state, unsigned char **cmt){
 	rc = crypto_scalarmult_ristretto255_base(tbuf , tmp->nonce);
 	assert(rc == 0);
 	//create commit message
-	*cmt = (unsigned char *)malloc(__SCHIBI_CMTLEN); //commit = U, V = vB where v is nonce
+	*cmt = (unsigned char *)malloc(__TSCIBI_CMTLEN); //commit = U, V = vB where v is nonce
 	copyskip( *cmt, tmp->U, 	0, 	RRE);
-	copyskip( *cmt, tbuf, 	RRE, 	RRE);
+	copyskip( *cmt, tmp->V, 	1*RRE, 	RRE);
+	copyskip( *cmt, tbuf, 		2*RRE, 	RRE);
 	*state = (void *)tmp; //recast and return
 }
 
-void __schibi_resgen(const unsigned char *cha, void *state, unsigned char **res){
-	struct __schibi_prvst *tmp = (struct __schibi_prvst *)state; //parse state
+void __tscibi_resgen(const unsigned char *cha, void *state, unsigned char **res){
+	struct __tscibi_prvst *tmp = (struct __tscibi_prvst *)state; //parse state
 	//allocate mem for response
-	*res = (unsigned char *)malloc(__SCHIBI_RESLEN); //response : y=t+cs where t is nonce
+	*res = (unsigned char *)malloc(__TSCIBI_RESLEN); //response : y=t+cs where t is nonce
 
 	//compute response
 	crypto_core_ristretto255_scalar_mul( *res, cha, tmp->s ); //
 	crypto_core_ristretto255_scalar_add( *res, *res, tmp->nonce );
-	__schibi_prvstfree(state); //critical, PLEASE FREE BEFORE RETURNING
+	__tscibi_prvstfree(state); //critical, PLEASE FREE BEFORE RETURNING
 }
 
-void __schibi_verinit(void *vpar, const unsigned char *mbuf, size_t mlen, void **state){
-	struct __schibi_pk *par = (struct __schibi_pk *)vpar; //parse mpk
-	struct __schibi_verst *tmp;
+void __tscibi_verinit(void *vpar, const unsigned char *mbuf, size_t mlen, void **state){
+	struct __tscibi_pk *par = (struct __tscibi_pk *)vpar; //parse mpk
+	struct __tscibi_verst *tmp;
 	//allocate
-	tmp = (struct __schibi_verst *)malloc(sizeof(struct __schibi_verst));
+	tmp = (struct __tscibi_verst *)malloc(sizeof(struct __tscibi_verst));
 
 	//copy mbuf
 	tmp->mbuf = (unsigned char *)malloc(mlen);
@@ -328,25 +393,31 @@ void __schibi_verinit(void *vpar, const unsigned char *mbuf, size_t mlen, void *
 	//copy public params
 	tmp->A = (unsigned char *)malloc(RRE);
 	memcpy(tmp->A, par->A, RRE);
+	tmp->A2 = (unsigned char *)malloc(RRE);
+	memcpy(tmp->A2, par->A2, RRE);
+	tmp->B2 = (unsigned char *)malloc(RRE);
+	memcpy(tmp->B2, par->B2, RRE);
 
 	*state = (void *)tmp; //recast and return
 }
 
 //vpar unused, but generally it MAY be used
-void __schibi_chagen(const unsigned char *cmt, void **state, unsigned char **cha){
-	struct __schibi_verst *tmp = (struct __schibi_verst *)(*state); //parse state
+void __tscibi_chagen(const unsigned char *cmt, void **state, unsigned char **cha){
+	struct __tscibi_verst *tmp = (struct __tscibi_verst *)(*state); //parse state
 
 	tmp->U = (unsigned char *)malloc(RRE);
 	tmp->V = (unsigned char *)malloc(RRE);
+	tmp->W = (unsigned char *)malloc(RRE);
 
 	//parse commit
 	skipcopy( tmp->U, cmt, 0, 	RRE);
 	skipcopy( tmp->V, cmt, RRE, 	RRE);
+	skipcopy( tmp->W, cmt, 2*RRE, 	RRE);
 
 	//generate challenge
 	//commit = U', V = vB where v is nonce
 	tmp->c = (unsigned char *)malloc(RRS);
-	*cha = (unsigned char *)malloc(__SCHIBI_CHALEN);
+	*cha = (unsigned char *)malloc(__TSCIBI_CHALEN);
 	crypto_core_ristretto255_scalar_random(tmp->c);
 	memcpy(*cha, tmp->c, RRS);
 
@@ -354,43 +425,43 @@ void __schibi_chagen(const unsigned char *cmt, void **state, unsigned char **cha
 }
 
 //main decision function for protocol
-void __schibi_protdc(const unsigned char *res, void *state, int *dec){
-	struct __schibi_verst *tmp = (struct __schibi_verst *)(state); //parse state
+void __tscibi_protdc(const unsigned char *res, void *state, int *dec){
+	struct __tscibi_verst *tmp = (struct __tscibi_verst *)(state); //parse state
 
 	unsigned char rhs[RRE]; unsigned char lhs[RRE]; unsigned char tbuf[RRS];
-	__schibi_hashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->A, tbuf);
+	__tscibi_hashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->V, tmp->A, tmp->A2, tbuf);
 
 	// yB = T + c( U' - xP1 )
 	*dec += crypto_scalarmult_ristretto255_base(lhs, res); // yB
 	*dec = crypto_scalarmult_ristretto255( rhs, tbuf, tmp->A); // xP1
 	*dec += crypto_core_ristretto255_sub( rhs, tmp->U, rhs); // U' - xP1
 	*dec += crypto_scalarmult_ristretto255( rhs, tmp->c, rhs); // c( U' - xP1 )
-	*dec += crypto_core_ristretto255_add( rhs, tmp->V, rhs);// T + c(U' - xP1)
+	*dec += crypto_core_ristretto255_add( rhs, tmp->W, rhs);// T + c(U' - xP1)
 
-	__schibi_verstfree(state);
+	__tscibi_verstfree(state);
 	*dec += crypto_verify_32(lhs, rhs);
 }
 
-const struct __ibi schibi = {
-	.randkeygen = __schibi_randkeygen,
-	.getpubkey = __schibi_getpubkey,
-	.signatgen = __schibi_signatgen,
-	.signatchk = __schibi_signatchk,
-	.skfree = __schibi_skfree,
-	.pkfree = __schibi_pkfree,
-	.sgfree = __schibi_sgfree,
-	.skprint = __schibi_skprint,
-	.pkprint = __schibi_pkprint,
-	.sgprint = __schibi_sgprint,
-	.prvinit = __schibi_prvinit,
-	.cmtgen = __schibi_cmtgen,
-	.resgen = __schibi_resgen,
-	.verinit = __schibi_verinit,
-	.chagen = __schibi_chagen,
-	.protdc = __schibi_protdc,
-	.cmtlen = __SCHIBI_CMTLEN,
-	.chalen = __SCHIBI_CHALEN,
-	.reslen = __SCHIBI_RESLEN,
+const struct __ibi tscibi = {
+	.randkeygen = __tscibi_randkeygen,
+	.getpubkey = __tscibi_getpubkey,
+	.signatgen = __tscibi_signatgen,
+	.signatchk = __tscibi_signatchk,
+	.skfree = __tscibi_skfree,
+	.pkfree = __tscibi_pkfree,
+	.sgfree = __tscibi_sgfree,
+	.skprint = __tscibi_skprint,
+	.pkprint = __tscibi_pkprint,
+	.sgprint = __tscibi_sgprint,
+	.prvinit = __tscibi_prvinit,
+	.cmtgen = __tscibi_cmtgen,
+	.resgen = __tscibi_resgen,
+	.verinit = __tscibi_verinit,
+	.chagen = __tscibi_chagen,
+	.protdc = __tscibi_protdc,
+	.cmtlen = __TSCIBI_CMTLEN,
+	.chalen = __TSCIBI_CHALEN,
+	.reslen = __TSCIBI_RESLEN,
 };
 
 

@@ -20,12 +20,13 @@
  * SOFTWARE.
  */
 
-#ifndef __IBI_H_
-#define __IBI_H_
+#ifndef __GIBI_H_
+#define __GIBI_H_
 
 #include <stddef.h>
 
-struct __ibi {
+struct __gibi {
+
 	void (*randkeygen)(void **); //generate a random key
 	void (*getpubkey)(void *, void **); //obtain pubkey from secret
 	void (*signatgen)( void *, const unsigned char *, size_t, void ** );
@@ -36,6 +37,11 @@ struct __ibi {
 	void (*skprint)(void *);
 	void (*pkprint)(void *);
 	void (*sgprint)(void *);
+
+	//group manager key derive (group public and group secret)
+	void (*gmemkeyder)( void *, void **); //e:phase 2
+	void (*gidreqgen)(void *, const unsigned char *, size_t, void **); //i:phase 1
+	void (*gidreqchk)(void *, void *, const unsigned char *, size_t, int *); //i:phase 2
 
 	//used by prover
 	//generates a state information
@@ -61,9 +67,8 @@ struct __ibi {
 	//void (*sigstruct)(const unsigned char *, size_t, void **);
 };
 
-extern const struct __ibi schibi;
-extern const struct __ibi tscibi;
+extern const struct __gibi ancygibi;
 
-extern const struct __ibi *ibi_impls[];
+extern const struct __gibi *gibi_impls[];
 
 #endif

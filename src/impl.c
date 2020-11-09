@@ -24,6 +24,7 @@
 
 const struct __ibi *ibi_impls[] = {
 	&schibi,
+	&tscibi,
 	NULL,
 };
 
