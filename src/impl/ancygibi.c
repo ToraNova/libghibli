@@ -152,7 +152,6 @@ void __ancygibi_gidreqgen(void *vgusk, const unsigned char *mbuf, size_t mlen, v
 	*out = (void *) tmp;
 }
 
-
 void __ancygibi_gidreqchk(
 	void *vgupk,
 	void *vsig,
@@ -241,5 +240,3 @@ const struct __gibi ancygibi = {
 	.gidreqgen = __ancygibi_gidreqgen,
 	.gidreqchk = __ancygibi_gidreqchk,
 };
-
-

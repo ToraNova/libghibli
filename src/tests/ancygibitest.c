@@ -19,7 +19,7 @@ long long rdtsc(){
 	return ((long long)hi << 32) | lo;
 }
 
-#define rnc 1000
+#define rnc 100
 #define MEASUREMODE CLOCK_REALTIME
 //#define MEASUREMODE CLOCK_PROCESS_CPUTIME_ID
 
@@ -30,12 +30,12 @@ int main(int argc, char *argv[]){
 	void *msk;
 	void *mpk;
 	void *gsk;
+	void *greq;
 	void **gusk; //assume 5 members
 	void **gupk;
-	void **greq;
 	int rc;
 	unsigned char msg[64];
-	unsigned char msg2[32];
+	unsigned char msg2[64];
 	unsigned char *cmt, *cha, *res;
 	void *pst, *vst;
 	int dec;
@@ -138,14 +138,11 @@ int main(int argc, char *argv[]){
 		cycles_e2[i] = ecycle - scycle;
 
 		//simulate, member 0 desire identification. gen signature
-		greq = (void **) malloc( gmc*sizeof(void *) );
 
 		clock_gettime(CLOCK_REALTIME, &swal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &sclk);
 		scycle = rdtsc();
-		for(int j=0;j<gmc;j++){
-			ancygibi.gidreqgen( gusk[j], msg2, strlen(msg2), &(greq[j]) );
-		}
+		ancygibi.gidreqgen( gusk[0], msg2, strlen(msg2), &greq );
 		ecycle = rdtsc();
 		clock_gettime(CLOCK_REALTIME, &ewal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &eclk);
@@ -161,9 +158,14 @@ int main(int argc, char *argv[]){
 		clock_gettime(CLOCK_REALTIME, &swal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &sclk);
 		scycle = rdtsc();
-		for(int j=0;j<gmc;j++){
-			ancygibi.gidreqchk( gupk[j], greq[j], msg2, strlen(msg2), &rc);
+		ancygibi.gidreqchk( gupk[0], greq, msg2, strlen(msg2), &rc);
+		ancygibi.sgfree(greq);
+		assert(rc == 0);
+		for(int j=1;j<gmc;j++){
+			ancygibi.gidreqgen( gusk[j], msg2, strlen(msg2), &greq );
+			ancygibi.gidreqchk( gupk[j], greq, msg2, strlen(msg2), &rc);
 			assert(rc==0);
+			ancygibi.sgfree(greq);
 		}
 		ecycle = rdtsc();
 		clock_gettime(CLOCK_REALTIME, &ewal);
@@ -208,11 +210,9 @@ int main(int argc, char *argv[]){
 		for(int j=0;j<gmc;j++){
 			ancygibi.skfree(gusk[j]);
 			ancygibi.pkfree(gupk[j]);
-			ancygibi.sgfree(greq[j]);
 		}
 		free(gusk);
 		free(gupk);
-		free(greq);
 	}
 
 	for(int i=1;i<rnc;i++){
