@@ -41,7 +41,7 @@ int main(int argc, char *argv[]){
 	int dec;
 
 	printf("running ancy group-ibi test\n");
-	cryptoinit(); //uses whatev backend we use
+	ghibcore.init();
 
 	struct timespec swal, ewal;
 	struct timespec sclk, eclk;
@@ -81,8 +81,8 @@ int main(int argc, char *argv[]){
 		clock_gettime(CLOCK_REALTIME, &swal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &sclk);
 		scycle = rdtsc();
-		ancygibi.randkeygen(&msk);
-		ancygibi.getpubkey(msk, &mpk);
+		ancygibi.keygen(&msk);
+		ancygibi.pkext(msk, &mpk);
 		ecycle = rdtsc();
 		clock_gettime(CLOCK_REALTIME, &ewal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &eclk);
@@ -99,11 +99,11 @@ int main(int argc, char *argv[]){
 		clock_gettime(CLOCK_REALTIME, &swal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &sclk);
 		scycle = rdtsc();
-		ancygibi.signatgen(msk, msg, strlen(msg), &gsk);
+		ancygibi.siggen(msk, msg, strlen(msg), &gsk);
 		ecycle = rdtsc();
 		clock_gettime(CLOCK_REALTIME, &ewal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &eclk);
-		//ancygibi.signatchk(mpk, gsk, msg, strlen(msg), &rc);
+		//ancygibi.sigvrf(mpk, gsk, msg, strlen(msg), &rc);
 		//assert(rc==0); //assure valid group key
 
 		tsec = ewal.tv_sec - swal.tv_sec;
@@ -123,7 +123,7 @@ int main(int argc, char *argv[]){
 		scycle = rdtsc();
 		for(int j=0;j<gmc;j++){
 			ancygibi.gmemkeyder(mpk, &(gusk[j]));
-			ancygibi.getpubkey(gusk[j], &(gupk[j]));
+			ancygibi.pkext(gusk[j], &(gupk[j]));
 		}
 		ecycle = rdtsc();
 		clock_gettime(CLOCK_REALTIME, &ewal);
@@ -158,12 +158,12 @@ int main(int argc, char *argv[]){
 		clock_gettime(CLOCK_REALTIME, &swal);
 		clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &sclk);
 		scycle = rdtsc();
-		ancygibi.gidreqchk( gupk[0], greq, msg2, strlen(msg2), &rc);
+		ancygibi.gidreqvrf( gupk[0], greq, msg2, strlen(msg2), &rc);
 		ancygibi.sgfree(greq);
 		assert(rc == 0);
 		for(int j=1;j<gmc;j++){
 			ancygibi.gidreqgen( gusk[j], msg2, strlen(msg2), &greq );
-			ancygibi.gidreqchk( gupk[j], greq, msg2, strlen(msg2), &rc);
+			ancygibi.gidreqvrf( gupk[j], greq, msg2, strlen(msg2), &rc);
 			assert(rc==0);
 			ancygibi.sgfree(greq);
 		}

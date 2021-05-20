@@ -21,11 +21,9 @@
  */
 
 #include <sodium.h>
-#include "../impl.h"
-#include "../utils/debug.h"
+#include "utils/debug.h"
 
-int cryptoinit(){
-
+int __crypto_init(){
 	//2020 Nov 09, using libsodium
 	if(sodium_init() == 0){
 		return 0;

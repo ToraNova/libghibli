@@ -31,7 +31,4 @@
 
 struct __ibi init_ibi_impl(int an);
 
-//please call this before using libghibli
-int cryptoinit();
-
 #endif

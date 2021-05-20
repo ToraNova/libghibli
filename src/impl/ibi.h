@@ -26,10 +26,11 @@
 #include <stddef.h>
 
 struct __ibi {
-	void (*randkeygen)(void **); //generate a random key
-	void (*getpubkey)(void *, void **); //obtain pubkey from secret
-	void (*signatgen)( void *, const unsigned char *, size_t, void ** );
-	void (*signatchk)(void *,void *, const unsigned char *, size_t, int *);
+	int (*init)(void); //crypto initialization
+	void (*keygen)(void **); //generate a random key
+	void (*pkext)(void *, void **); //obtain pubkey from secret
+	void (*siggen)( void *, const unsigned char *, size_t, void ** );
+	void (*sigvrf)(void *,void *, const unsigned char *, size_t, int *);
 	void (*skfree)(void *);
 	void (*pkfree)(void *);
 	void (*sgfree)(void *);
@@ -61,6 +62,7 @@ struct __ibi {
 	//void (*sigstruct)(const unsigned char *, size_t, void **);
 };
 
+extern int __crypto_init(); //cryptographic backend initialization function
 extern const struct __ibi schibi;
 extern const struct __ibi tscibi;
 

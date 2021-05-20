@@ -27,10 +27,10 @@
 
 struct __gibi {
 
-	void (*randkeygen)(void **); //generate a random key
-	void (*getpubkey)(void *, void **); //obtain pubkey from secret
-	void (*signatgen)( void *, const unsigned char *, size_t, void ** );
-	void (*signatchk)(void *,void *, const unsigned char *, size_t, int *);
+	void (*keygen)(void **); //generate a random key
+	void (*pkext)(void *, void **); //obtain pubkey from secret
+	void (*siggen)( void *, const unsigned char *, size_t, void ** );
+	void (*sigvrf)(void *,void *, const unsigned char *, size_t, int *);
 	void (*skfree)(void *);
 	void (*pkfree)(void *);
 	void (*sgfree)(void *);
@@ -41,7 +41,7 @@ struct __gibi {
 	//group manager key derive (group public and group secret)
 	void (*gmemkeyder)( void *, void **); //e:phase 2
 	void (*gidreqgen)(void *, const unsigned char *, size_t, void **); //i:phase 1
-	void (*gidreqchk)(void *, void *, const unsigned char *, size_t, int *); //i:phase 2
+	void (*gidreqvrf)(void *, void *, const unsigned char *, size_t, int *); //i:phase 2
 
 	//used by prover
 	//generates a state information
@@ -67,6 +67,7 @@ struct __gibi {
 	//void (*sigstruct)(const unsigned char *, size_t, void **);
 };
 
+extern int __crypto_init(); //cryptographic backend initialization function
 extern const struct __gibi ancygibi;
 
 extern const struct __gibi *gibi_impls[];

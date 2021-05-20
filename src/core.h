@@ -27,11 +27,13 @@
 //core utils
 struct __core {
 	int (*randombytes)(unsigned char *, unsigned int);
+	int (*init)(void);
 	//ibi based functions
 	const struct __ibi **ibi_impls;
 	struct __ibi ibi;
 };
 
+extern int __crypto_init(); //cryptographic backend initialization function
 extern const struct __core ghibcore;
 
 #endif

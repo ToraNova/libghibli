@@ -18,7 +18,7 @@ int main(int argc, char *argv[]){
 	int rc;
 	unsigned char msg[64];
 
-	cryptoinit(); //uses whatev backend we use
+	ghibcore.init(); //uses whatev backend we use
 
 	unsigned char *cmt, *cha, *res;
 	void *pst, *vst;
@@ -29,19 +29,19 @@ int main(int argc, char *argv[]){
 		for(int j=0;j<100;j++){
 			ghibcore.randombytes(msg, 64);
 			//printf("m :"); ucbprint(msg, 64); printf("\n");
-			ghibcore.ibi_impls[i]->randkeygen(&secret);
-			ghibcore.ibi_impls[i]->getpubkey(secret, &pubkey);
+			ghibcore.ibi_impls[i]->keygen(&secret);
+			ghibcore.ibi_impls[i]->pkext(secret, &pubkey);
 
-			ghibcore.ibi_impls[i]->signatgen(secret, msg, strlen(msg), &signat);
-			ghibcore.ibi_impls[i]->signatchk(pubkey, signat, msg, strlen(msg), &rc);
+			ghibcore.ibi_impls[i]->siggen(secret, msg, strlen(msg), &signat);
+			ghibcore.ibi_impls[i]->sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 			assert(rc == 0);
 
 			msg[0] ^= 0x01;
-			ghibcore.ibi_impls[i]->signatchk(pubkey, signat, msg, strlen(msg), &rc);
+			ghibcore.ibi_impls[i]->sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 			assert(rc < 0);
 
 			msg[0] ^= 0x01;
-			ghibcore.ibi_impls[i]->signatchk(pubkey, signat, msg, strlen(msg), &rc);
+			ghibcore.ibi_impls[i]->sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 			assert(rc == 0);
 
 			//ghibcore.ibi_impls[i]->skprint(secret);

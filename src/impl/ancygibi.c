@@ -217,10 +217,10 @@ extern void __tscibi_chagen();
 extern void __tscibi_protdc();
 
 const struct __gibi ancygibi = {
-	.randkeygen = __tscibi_randkeygen,
-	.getpubkey = __tscibi_getpubkey,
-	.signatgen = __tscibi_signatgen,
-	.signatchk = __tscibi_signatchk,
+	.keygen = __tscibi_randkeygen,
+	.pkext = __tscibi_getpubkey,
+	.siggen = __tscibi_signatgen,
+	.sigvrf = __tscibi_signatchk,
 	.skfree = __tscibi_skfree,
 	.pkfree = __tscibi_pkfree,
 	.sgfree = __tscibi_sgfree,
@@ -238,5 +238,5 @@ const struct __gibi ancygibi = {
 	.reslen = __ANCYGIBI_RESLEN,
 	.gmemkeyder = __ancygibi_gmemkeyder,
 	.gidreqgen = __ancygibi_gidreqgen,
-	.gidreqchk = __ancygibi_gidreqchk,
+	.gidreqvrf = __ancygibi_gidreqchk,
 };

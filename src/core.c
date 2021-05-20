@@ -19,10 +19,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include "core.h"
 #include <stdio.h>
+#include "core.h"
 
-int urandom_bytes(unsigned char *arr, unsigned int rc){
+int __urandom_bytes(unsigned char *arr, unsigned int rc){
 	FILE *udr = fopen("/dev/urandom", "rb");
 	fread(arr, 1, rc, udr);
 	fclose(udr);
@@ -30,8 +30,7 @@ int urandom_bytes(unsigned char *arr, unsigned int rc){
 }
 
 const struct __core ghibcore = {
-	.randombytes = urandom_bytes,
+	.init = __crypto_init,
+	.randombytes = __urandom_bytes,
 	.ibi_impls = (const struct __ibi **) &ibi_impls,
 };
-
-

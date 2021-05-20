@@ -17,21 +17,21 @@ int main(int argc, char *argv[]){
 	int rc;
 	unsigned char msg[] = "hello world\n";
 
-	cryptoinit(); //uses whatev backend we use
+	schibi.init(); //uses whatev backend we use
 
-	schibi.randkeygen(&secret);
-	schibi.getpubkey(secret, &pubkey);
+	schibi.keygen(&secret);
+	schibi.pkext(secret, &pubkey);
 
-	schibi.signatgen(secret, msg, strlen(msg), &signat);
-	schibi.signatchk(pubkey, signat, msg, strlen(msg), &rc);
+	schibi.siggen(secret, msg, strlen(msg), &signat);
+	schibi.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 	printf("%s : %d\n",msg,rc);
 
 	msg[0] = 'm';
-	schibi.signatchk(pubkey, signat, msg, strlen(msg), &rc);
+	schibi.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 	printf("%s : %d\n",msg,rc);
 
 	msg[0] = 'h';
-	schibi.signatchk(pubkey, signat, msg, strlen(msg), &rc);
+	schibi.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 	printf("%s : %d\n",msg,rc);
 
 	schibi.skprint(secret);

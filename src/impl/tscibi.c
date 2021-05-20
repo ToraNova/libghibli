@@ -443,10 +443,11 @@ void __tscibi_protdc(const unsigned char *res, void *state, int *dec){
 }
 
 const struct __ibi tscibi = {
-	.randkeygen = __tscibi_randkeygen,
-	.getpubkey = __tscibi_getpubkey,
-	.signatgen = __tscibi_signatgen,
-	.signatchk = __tscibi_signatchk,
+	.init = __crypto_init,
+	.keygen = __tscibi_randkeygen,
+	.pkext = __tscibi_getpubkey,
+	.siggen = __tscibi_signatgen,
+	.sigvrf = __tscibi_signatchk,
 	.skfree = __tscibi_skfree,
 	.pkfree = __tscibi_pkfree,
 	.sgfree = __tscibi_sgfree,

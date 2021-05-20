@@ -372,10 +372,11 @@ void __schibi_protdc(const unsigned char *res, void *state, int *dec){
 }
 
 const struct __ibi schibi = {
-	.randkeygen = __schibi_randkeygen,
-	.getpubkey = __schibi_getpubkey,
-	.signatgen = __schibi_signatgen,
-	.signatchk = __schibi_signatchk,
+	.init = __crypto_init,
+	.keygen = __schibi_randkeygen,
+	.pkext = __schibi_getpubkey,
+	.siggen = __schibi_signatgen,
+	.sigvrf = __schibi_signatchk,
 	.skfree = __schibi_skfree,
 	.pkfree = __schibi_pkfree,
 	.sgfree = __schibi_sgfree,

@@ -31,10 +31,10 @@ const struct __ibi *ibi_impls[] = {
 //initialize the "default ibi"
 struct __ibi init_ibi_impl(int an){
 	struct __ibi ftable = {
-	.randkeygen = ibi_impls[an]->randkeygen,
-	.getpubkey = ibi_impls[an]->getpubkey,
-	.signatgen = ibi_impls[an]->signatgen,
-	.signatchk = ibi_impls[an]->signatchk,
+	.keygen = ibi_impls[an]->keygen,
+	.pkext = ibi_impls[an]->pkext,
+	.siggen = ibi_impls[an]->siggen,
+	.sigvrf = ibi_impls[an]->sigvrf,
 	.skfree = ibi_impls[an]->skfree,
 	.pkfree = ibi_impls[an]->pkfree,
 	.sgfree = ibi_impls[an]->sgfree,
@@ -52,4 +52,3 @@ struct __ibi init_ibi_impl(int an){
 	.reslen = ibi_impls[an]->reslen,
 	};
 }
-

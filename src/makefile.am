@@ -17,7 +17,7 @@ include_HEADERS = ghibli.h
 if COMPILERUNS
 # define programs to be compiled and installed; $(bindir) @default /usr/local/bin
 bin_PROGRAMS = ghibc
-ghibc_SOURCES = ghibc.c
+ghibc_SOURCES = ghibc_cli.c
 ghibc_LDADD = libghibli.la
 endif
 
