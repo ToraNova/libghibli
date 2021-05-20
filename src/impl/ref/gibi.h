@@ -26,7 +26,7 @@
 #include <stddef.h>
 
 struct __gibi {
-
+	int (*init)(void); //crypto initialization
 	void (*keygen)(void **); //generate a random key
 	void (*pkext)(void *, void **); //obtain pubkey from secret
 	void (*siggen)( void *, const unsigned char *, size_t, void ** );
@@ -67,7 +67,6 @@ struct __gibi {
 	//void (*sigstruct)(const unsigned char *, size_t, void **);
 };
 
-extern int __crypto_init(); //cryptographic backend initialization function
 extern const struct __gibi ancygibi;
 
 extern const struct __gibi *gibi_impls[];

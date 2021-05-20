@@ -22,13 +22,14 @@
 #ifndef __IMPL_H__
 #define __IMPL_H__
 
+#include "impl/ds.h"
 #include "impl/ibi.h"
-#include "impl/gibi.h"
+//#include "impl/gibi.h"
 
 //ibi algo macros
 #define IBIAL_SCHIBI 0
 #define IBIAL_TSCIBI 1
 
-struct __ibi init_ibi_impl(int an);
+struct __ibi *init_ibi_impl(int an);
 
 #endif

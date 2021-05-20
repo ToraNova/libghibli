@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include "core.h"
 
+int __init(int);
+
 int __urandom_bytes(unsigned char *arr, unsigned int rc){
 	FILE *udr = fopen("/dev/urandom", "rb");
 	fread(arr, 1, rc, udr);
@@ -29,8 +31,14 @@ int __urandom_bytes(unsigned char *arr, unsigned int rc){
 	return 0;
 }
 
-const struct __core ghibcore = {
-	.init = __crypto_init,
+struct __core ghibcore = {
+	.init = __init,
 	.randombytes = __urandom_bytes,
 	.ibi_impls = (const struct __ibi **) &ibi_impls,
+	.ibi = NULL,
 };
+
+int __init(int an){
+	ghibcore.ibi = init_ibi_impl(an);
+	return ghibcore.ibi->init();
+}

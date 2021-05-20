@@ -2,11 +2,11 @@
 # using libtool (different library name to avoid confusion)
 # if this is used, the SHARED library file is also compiled
 lib_LTLIBRARIES = libghibli.la
-libghibli_la_SOURCES =	utils/bufhelp.c utils/simplesock.c \
-			impl/crypto.c \
-			impl/schibi.c impl/tscibi.c \
-			impl/ancygibi.c \
-			impl.c core.c
+libghibli_la_SOURCES =	utils/bufhelp.c utils/simplesock.c utils/futil.c utils/jbase64.c \
+			impl/crypto.c impl/ibi.c \
+			impl/schnorr.c impl/heng.c \
+			impl.c core.c \
+			ghibli.c
 libghibli_la_LDFLAGS = -lsodium
 
 # header files to be installed; $(includedir) @default /usr/local/include
@@ -26,7 +26,7 @@ endif
 if COMPILETESTS
 # define programs to be compiled but not installed
 # useful for test applications
-noinst_PROGRAMS = coretest example ibitest schibitest ancygibitest
+noinst_PROGRAMS = coretest example ibitest schnorrtest
 coretest_SOURCES = tests/coretest.c
 # assume test.c is using the shared library, using this to link
 coretest_LDADD = libghibli.la
@@ -34,10 +34,8 @@ example_SOURCES = tests/example.c
 example_LDADD = libghibli.la
 ibitest_SOURCES = tests/ibitest.c
 ibitest_LDADD = libghibli.la
-schibitest_SOURCES = tests/schibitest.c
-schibitest_LDADD = libghibli.la
-ancygibitest_SOURCES = tests/ancygibitest.c
-ancygibitest_LDADD = libghibli.la
+schnorrtest_SOURCES = tests/schnorrtest.c
+schnorrtest_LDADD = libghibli.la
 # one may include an optional argument as such
 # nodist_include_HEADERS (to not include in distribution)
 # distribution and installation is different! once installs to

@@ -20,19 +20,39 @@
  * SOFTWARE.
  */
 
-#ifndef __GHIBLI_H__
-#define __GHIBLI_H__
+#ifndef __DS_H__
+#define __DS_H__
 
-//PLEASE call cryptoinit() before using the library
+#include <stddef.h>
 
-#include "core.h"
+struct __dss {
+	int (*init)(void); //crypto initialization
+	void (*keygen)(void **); //generate a random key
+	void (*pkext)(void *, void **); //obtain pubkey from secret
+	void (*siggen)( void *, const unsigned char *, size_t, void ** );
+	void (*sigvrf)(void *,void *, const unsigned char *, size_t, int *);
+	void (*skfree)(void *);
+	void (*pkfree)(void *);
+	void (*sgfree)(void *);
+	void (*skprint)(void *);
+	void (*pkprint)(void *);
+	void (*sgprint)(void *);
 
-struct __ghibli_file {
-	int (*mastergen)(char *, char *, int);
-	int (*usergen)(char *, char *, char *, int);
-	int (*userval)(char *, char *, int, char **, size_t *);
+	const size_t sklen;
+	const size_t pklen;
+	const size_t sglen;
+
+	size_t (*skserial)(void *, unsigned char **);
+	size_t (*pkserial)(void *, unsigned char **);
+	size_t (*sgserial)(void *, unsigned char **);
+
+	size_t (*skconstr)(const unsigned char *, void **);
+	size_t (*pkconstr)(const unsigned char *, void **);
+	size_t (*sgconstr)(const unsigned char *, void **);
 };
 
-extern const struct __ghibli_file ghibfile;
+extern const struct __dss schnorr;
+
+extern const struct __dss *dss_impls[];
 
 #endif

@@ -23,13 +23,16 @@
 #include "impl.h"
 
 const struct __ibi *ibi_impls[] = {
-	&schibi,
-	&tscibi,
+	&schnorr_ibi,
+	//&tscibi,
 	NULL,
 };
 
 //initialize the "default ibi"
-struct __ibi init_ibi_impl(int an){
+struct __ibi *init_ibi_impl(int an){
+	// TODO: bounds check?
+	return (struct __ibi *) ibi_impls[an];
+	/*
 	struct __ibi ftable = {
 	.keygen = ibi_impls[an]->keygen,
 	.pkext = ibi_impls[an]->pkext,
@@ -51,4 +54,5 @@ struct __ibi init_ibi_impl(int an){
 	.chalen = ibi_impls[an]->chalen,
 	.reslen = ibi_impls[an]->reslen,
 	};
+	*/
 }

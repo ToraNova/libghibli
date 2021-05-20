@@ -25,12 +25,16 @@
 #include <assert.h>
 #include "../utils/bufhelp.h"
 #include "../utils/debug.h"
-#include "sodium_macro.h"
+#include "__crypto.h"
 #include "ibi.h"
 
-#define __TSCIBI_CMTLEN 3*RRE
-#define __TSCIBI_CHALEN RRS
-#define __TSCIBI_RESLEN RRS
+#define TSCIBI_CMTLEN 3*RRE
+#define TSCIBI_CHALEN RRS
+#define TSCIBI_RESLEN RRS
+
+#define TSCIBI_PKLEN 3*RRE
+#define TSCIBI_SKLEN RRS+TSCIBI_PKLEN
+#define TSCIBI_SGLEN 2*RRS+2*RRE
 
 struct __tscibi_pk {
 	unsigned char *A; //y = aB
@@ -98,18 +102,38 @@ void __tscibi_verstfree(void *state){
 	free(tmp);
 }
 
+// memory allocation
+struct __tscibi_pk *__tscibi_pkinit(void){
+	struct __tscibi_pk *out;
+	out = (struct __tscibi_pk *)malloc( sizeof(struct __tscibi_pk) );
+	out->A = (unsigned char *)malloc( RRE );
+	out->A2 = (unsigned char *)malloc( RRE );
+	out->B2 = (unsigned char *)malloc( RRE );
+	return out;
+}
+struct __tscibi_sk *__tscibi_skinit(void){
+	struct __tscibi_sk *out;
+	out = (struct __tscibi_sk *)sodium_malloc( sizeof(struct __tscibi_sk) );
+	out->a = (unsigned char *)sodium_malloc( RRS );
+	out->pub = __tscibi_pkinit();
+	return out;
+}
+struct __tscibi_sg *__tscibi_sginit(void){
+	struct __tscibi_sg *out;
+	out = (struct __tscibi_sg *)sodium_malloc( sizeof( struct __tscibi_sg) );
+	out->s = (unsigned char *)sodium_malloc( RRS );
+	out->x = (unsigned char *)sodium_malloc( RRS );
+	out->U = (unsigned char *)sodium_malloc( RRE );
+	out->V = (unsigned char *)sodium_malloc( RRE );
+	return out;
+}
+
 void __tscibi_randkeygen(void **out){
 	//declare and allocate memory for key
-	int rc; struct __tscibi_sk *tmp;
-	tmp = (struct __tscibi_sk *)malloc( sizeof(struct __tscibi_sk) );
+	int rc;
 	//allocate memory for pubkey
-	tmp->pub = (struct __tscibi_pk *)malloc( sizeof(struct __tscibi_pk) );
+	struct __tscibi_sk *tmp = __tscibi_skinit();
 	unsigned char neg[RRS];
-
-	tmp->a = (unsigned char *)sodium_malloc( RRS );
-	tmp->pub->A = (unsigned char *)malloc( RRE );
-	tmp->pub->A2 = (unsigned char *)malloc( RRE );
-	tmp->pub->B2 = (unsigned char *)malloc( RRE );
 
 	//sample secret a
 	crypto_core_ristretto255_scalar_random( tmp->a );
@@ -140,12 +164,9 @@ void __tscibi_randkeygen(void **out){
 }
 
 void __tscibi_getpubkey(void *vkey, void **out){
-	struct __tscibi_pk *tmp;
+	//key recast
 	struct __tscibi_sk *key = ((struct __tscibi_sk *)vkey);
-	tmp = (struct __tscibi_pk *)malloc( sizeof(struct __tscibi_pk) );
-	tmp->A = (unsigned char *)malloc( RRE );
-	tmp->A2 = (unsigned char *)malloc( RRE );
-	tmp->B2 = (unsigned char *)malloc( RRE );
+	struct __tscibi_pk *tmp = __tscibi_pkinit();
 
 	copyskip(tmp->A, key->pub->A,  	0, RRE);
 	copyskip(tmp->A2, key->pub->A2, 0, RRE);
@@ -182,21 +203,15 @@ void __tscibi_signatgen(
 	const unsigned char *mbuf, size_t mlen,
 	void **out
 ){
+	int rc;
 	//key recast
-	int rc; struct __tscibi_sg *tmp;
 	struct __tscibi_sk *key = (struct __tscibi_sk *)vkey;
 	//declare and allocate for signature struct
-	tmp = (struct __tscibi_sg *)malloc( sizeof( struct __tscibi_sg) );
+	struct __tscibi_sg *tmp = __tscibi_sginit();
 
 	//--------------------------TODO START
 	//nonce, r and hash
 	unsigned char nonce[RRS];
-
-	//allocate for components
-	tmp->s = (unsigned char *)sodium_malloc( RRS );
-	tmp->x = (unsigned char *)sodium_malloc( RRS );
-	tmp->U = (unsigned char *)malloc( RRE );
-	tmp->V = (unsigned char *)malloc( RRE );
 
 	//sample r (MUST RANDOMIZE, else secret key a will be exposed)
 	crypto_core_ristretto255_scalar_random(nonce);
@@ -291,20 +306,20 @@ void __tscibi_skfree(void *in){
 	//free memory
 	sodium_free(ri->a);
 	__tscibi_pkfree(ri->pub);
-	free(ri);
+	sodium_free(ri);
 }
 
 void __tscibi_sgfree(void *in){
 	//key recast
 	struct __tscibi_sg *ri = (struct __tscibi_sg *)in;
 	//clear the components
-	sodium_memzero(ri->U, RRE);
-	sodium_memzero(ri->V, RRE);
+	//sodium_memzero(ri->U, RRE);
+	//sodium_memzero(ri->V, RRE);
 	sodium_free(ri->s);
 	sodium_free(ri->x);
-	free(ri->U);
-	free(ri->V);
-	free(ri);
+	sodium_free(ri->U);
+	sodium_free(ri->V);
+	sodium_free(ri);
 }
 
 //debugging use only
@@ -361,7 +376,7 @@ void __tscibi_cmtgen(void **state, unsigned char **cmt){
 	rc = crypto_scalarmult_ristretto255_base(tbuf , tmp->nonce);
 	assert(rc == 0);
 	//create commit message
-	*cmt = (unsigned char *)malloc(__TSCIBI_CMTLEN); //commit = U, V = vB where v is nonce
+	*cmt = (unsigned char *)malloc(TSCIBI_CMTLEN); //commit = U, V = vB where v is nonce
 	copyskip( *cmt, tmp->U, 	0, 	RRE);
 	copyskip( *cmt, tmp->V, 	1*RRE, 	RRE);
 	copyskip( *cmt, tbuf, 		2*RRE, 	RRE);
@@ -371,7 +386,7 @@ void __tscibi_cmtgen(void **state, unsigned char **cmt){
 void __tscibi_resgen(const unsigned char *cha, void *state, unsigned char **res){
 	struct __tscibi_prvst *tmp = (struct __tscibi_prvst *)state; //parse state
 	//allocate mem for response
-	*res = (unsigned char *)malloc(__TSCIBI_RESLEN); //response : y=t+cs where t is nonce
+	*res = (unsigned char *)malloc(TSCIBI_RESLEN); //response : y=t+cs where t is nonce
 
 	//compute response
 	crypto_core_ristretto255_scalar_mul( *res, cha, tmp->s ); //
@@ -417,7 +432,7 @@ void __tscibi_chagen(const unsigned char *cmt, void **state, unsigned char **cha
 	//generate challenge
 	//commit = U', V = vB where v is nonce
 	tmp->c = (unsigned char *)malloc(RRS);
-	*cha = (unsigned char *)malloc(__TSCIBI_CHALEN);
+	*cha = (unsigned char *)malloc(TSCIBI_CHALEN);
 	crypto_core_ristretto255_scalar_random(tmp->c);
 	memcpy(*cha, tmp->c, RRS);
 
@@ -442,8 +457,87 @@ void __tscibi_protdc(const unsigned char *res, void *state, int *dec){
 	*dec += crypto_verify_32(lhs, rhs);
 }
 
+size_t __tscibi_skserial(void *in, unsigned char **out){
+	size_t rs;
+	struct __tscibi_sk *ri = (struct __tscibi_sk *)in;//recast the key
+	//set size and allocate
+	*out = (unsigned char *)malloc( TSCIBI_SKLEN );
+	//a, A
+	rs = copyskip( *out, ri->a, 		0, 	RRS);
+	rs = copyskip( *out, ri->pub->A, 	rs, 	RRE);
+	rs = copyskip( *out, ri->pub->A2, 	rs, 	RRE);
+	rs = copyskip( *out, ri->pub->B2, 	rs, 	RRE);
+	return rs;
+}
+
+size_t __tscibi_pkserial(void *in, unsigned char **out){
+	size_t rs;
+	struct __tscibi_pk *ri = (struct __tscibi_pk *)in;//recast the key
+	//set size and allocate
+	*out = (unsigned char *)malloc( TSCIBI_PKLEN );
+	// A
+	rs = copyskip( *out, ri->A, 	0, 	RRE);
+	rs = copyskip( *out, ri->A2, 	rs, 	RRE);
+	rs = copyskip( *out, ri->B2, 	rs, 	RRE);
+	return rs;
+}
+
+size_t __tscibi_sgserial(void *in, unsigned char **out){
+	size_t rs;
+	struct __tscibi_sg *ri = (struct __tscibi_sg *)in;//recast the obj
+	//set size and allocate
+	*out = (unsigned char *)malloc( TSCIBI_SGLEN );
+	//s, x, U
+	rs = copyskip( *out, ri->s, 	0, 	RRS);
+	rs = copyskip( *out, ri->x, 	rs, 	RRS);
+	rs = copyskip( *out, ri->U, 	rs, 	RRE);
+	rs = copyskip( *out, ri->V, 	rs, 	RRE);
+	return rs;
+}
+
+size_t __tscibi_skconstr(const unsigned char *in, void **out){
+	size_t rs;
+	struct __tscibi_sk *tmp;
+	//allocate memory for seckey
+	tmp = __tscibi_skinit();
+	// a, A, A2
+	rs = skipcopy( tmp->a,		in, 0, 	RRS);
+	rs = skipcopy( tmp->pub->A,	in, rs, RRE);
+	rs = skipcopy( tmp->pub->A2,	in, rs, RRE);
+	rs = skipcopy( tmp->pub->B2,	in, rs, RRE);
+	*out = (void *) tmp;
+	return rs;
+}
+
+size_t __tscibi_pkconstr(const unsigned char *in, void **out){
+	size_t rs;
+	struct __tscibi_pk *tmp;
+	//allocate memory for seckey
+	tmp = __tscibi_pkinit();
+	// A, A2, B2
+	rs = skipcopy( tmp->A,		in, 0, 	RRE);
+	rs = skipcopy( tmp->A2,		in, rs,	RRE);
+	rs = skipcopy( tmp->B2,		in, rs,	RRE);
+	*out = (void *) tmp;
+	return rs;
+}
+
+size_t __tscibi_sgconstr(const unsigned char *in, void **out){
+	size_t rs;
+	struct __tscibi_sg *tmp;
+	//allocate memory for seckey
+	tmp = __tscibi_sginit();
+	// s, x, U
+	rs = skipcopy( tmp->s,		in, 0, 	RRS);
+	rs = skipcopy( tmp->x,		in, rs, RRS);
+	rs = skipcopy( tmp->U,		in, rs, RRE);
+	rs = skipcopy( tmp->V,		in, rs, RRE);
+	*out = (void *) tmp;
+	return rs;
+}
+
 const struct __ibi tscibi = {
-	.init = __crypto_init,
+	.init = __sodium_init,
 	.keygen = __tscibi_randkeygen,
 	.pkext = __tscibi_getpubkey,
 	.siggen = __tscibi_signatgen,
@@ -460,9 +554,16 @@ const struct __ibi tscibi = {
 	.verinit = __tscibi_verinit,
 	.chagen = __tscibi_chagen,
 	.protdc = __tscibi_protdc,
-	.cmtlen = __TSCIBI_CMTLEN,
-	.chalen = __TSCIBI_CHALEN,
-	.reslen = __TSCIBI_RESLEN,
+	.sklen = TSCIBI_SKLEN,
+	.pklen = TSCIBI_PKLEN,
+	.sglen = TSCIBI_SGLEN,
+	.cmtlen = TSCIBI_CMTLEN,
+	.chalen = TSCIBI_CHALEN,
+	.reslen = TSCIBI_RESLEN,
+	.skserial = __tscibi_skserial,
+	.pkserial = __tscibi_pkserial,
+	.sgserial = __tscibi_sgserial,
+	.skconstr = __tscibi_skconstr,
+	.pkconstr = __tscibi_pkconstr,
+	.sgconstr = __tscibi_sgconstr,
 };
-
-

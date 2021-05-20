@@ -20,12 +20,14 @@
  * SOFTWARE.
  */
 
-#ifndef __SODIUM_MACRO_H__
-#define __SODIUM_MACRO_H__
+#include <sodium.h>
+#include <stdlib.h>
+#include "ibi.h"
 
-#include <sodium/crypto_core_ristretto255.h>
-#define RRE crypto_core_ristretto255_BYTES
-#define RRS crypto_core_ristretto255_SCALARBYTES
-#define RRH crypto_core_ristretto255_HASHBYTES
-
-#endif
+struct __ibi_uk *__ibi_ukinit(size_t mlen){
+	struct __ibi_uk *out;
+	out = (struct __ibi_uk *) sodium_malloc( sizeof(struct __ibi_uk) );
+	out->mlen = mlen;
+	out->m = (unsigned char *)malloc( mlen );
+	return out;
+}

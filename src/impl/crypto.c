@@ -21,14 +21,17 @@
  */
 
 #include <sodium.h>
+#include "__crypto.h"
 #include "utils/debug.h"
 
-int __crypto_init(){
+int __sodium_init(){
 	//2020 Nov 09, using libsodium
-	if(sodium_init() == 0){
+	int rc = sodium_init();
+	if(rc == 0 | rc == 1){
+		// no error 0
+		// already initialized 1
 		return 0;
-	}else {
-		lerror("unable to initialize libsodium secure memory!\n");
-		return 1;
 	}
+	lerror("unable to initialize libsodium secure memory!\n");
+	return 1;
 }

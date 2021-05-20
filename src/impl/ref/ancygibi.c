@@ -25,7 +25,7 @@
 #include <assert.h>
 #include "../utils/bufhelp.h"
 #include "../utils/debug.h"
-#include "sodium_macro.h"
+#include "__crypto.h"
 #include "gibi.h"
 
 #define __ANCYGIBI_CMTLEN 3*RRE
@@ -217,6 +217,7 @@ extern void __tscibi_chagen();
 extern void __tscibi_protdc();
 
 const struct __gibi ancygibi = {
+	.init = __sodium_init,
 	.keygen = __tscibi_randkeygen,
 	.pkext = __tscibi_getpubkey,
 	.siggen = __tscibi_signatgen,

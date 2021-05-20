@@ -20,19 +20,15 @@
  * SOFTWARE.
  */
 
-#ifndef __GHIBLI_H__
-#define __GHIBLI_H__
+#ifndef __CRYPTO_H__
+#define __CRYPTO_H__
 
-//PLEASE call cryptoinit() before using the library
+#include <sodium/crypto_core_ristretto255.h>
+#define RRE crypto_core_ristretto255_BYTES
+#define RRS crypto_core_ristretto255_SCALARBYTES
+#define RRH crypto_core_ristretto255_HASHBYTES
 
-#include "core.h"
-
-struct __ghibli_file {
-	int (*mastergen)(char *, char *, int);
-	int (*usergen)(char *, char *, char *, int);
-	int (*userval)(char *, char *, int, char **, size_t *);
-};
-
-extern const struct __ghibli_file ghibfile;
+//cryptographic backend initialization functions
+int __sodium_init();
 
 #endif

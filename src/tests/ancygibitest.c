@@ -41,7 +41,7 @@ int main(int argc, char *argv[]){
 	int dec;
 
 	printf("running ancy group-ibi test\n");
-	ghibcore.init();
+	ancygibi.init();
 
 	struct timespec swal, ewal;
 	struct timespec sclk, eclk;

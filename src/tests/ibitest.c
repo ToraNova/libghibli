@@ -4,6 +4,7 @@
 
 #include "../core.h"
 #include "../utils/bufhelp.h"
+#include "../utils/jbase64.h"
 //#include "../impl/ibi.h"
 #include <string.h>
 #include <stdio.h>
@@ -13,41 +14,90 @@
 int main(int argc, char *argv[]){
 
 	void *secret;
-	void *signat;
+	void *user;
 	void *pubkey;
 	int rc;
 	unsigned char msg[64];
-
-	ghibcore.init(); //uses whatev backend we use
 
 	unsigned char *cmt, *cha, *res;
 	void *pst, *vst;
 	int dec;
 
-	for(int i=0;i<2;i++){
+	char *aptr; size_t alen;
+	unsigned char *bptr; size_t blen;
+
+	for(int i=0;i<1;i++){
 		printf("testing algo %d\n",i);
+		ghibcore.init(i); //uses whatev backend we use
 		for(int j=0;j<100;j++){
 			ghibcore.randombytes(msg, 64);
 			//printf("m :"); ucbprint(msg, 64); printf("\n");
 			ghibcore.ibi_impls[i]->keygen(&secret);
+
+			blen = ghibcore.ibi_impls[i]->skserial(secret, &bptr);
+			assert(blen == ghibcore.ibi_impls[i]->sklen);
+			ghibcore.ibi_impls[i]->skfree(secret);
+
+			aptr = b64_encode(bptr, blen, BASE64_DEFAULT_WRAP);
+			free(bptr);
+			bptr = b64_decode(aptr);
+			blen = b64_decoded_size(aptr);
+			free(aptr);
+
+			blen = ghibcore.ibi_impls[i]->skconstr(bptr, &secret);
+			assert(blen == ghibcore.ibi_impls[i]->sklen);
+			free(bptr);
+
 			ghibcore.ibi_impls[i]->pkext(secret, &pubkey);
 
-			ghibcore.ibi_impls[i]->siggen(secret, msg, strlen(msg), &signat);
-			ghibcore.ibi_impls[i]->sigvrf(pubkey, signat, msg, strlen(msg), &rc);
-			assert(rc == 0);
+			blen = ghibcore.ibi_impls[i]->pkserial(pubkey, &bptr);
+			assert(blen == ghibcore.ibi_impls[i]->pklen);
+			ghibcore.ibi_impls[i]->pkfree(pubkey);
 
-			msg[0] ^= 0x01;
-			ghibcore.ibi_impls[i]->sigvrf(pubkey, signat, msg, strlen(msg), &rc);
-			assert(rc < 0);
+			aptr = b64_encode(bptr, blen, BASE64_DEFAULT_WRAP);
+			free(bptr);
+			bptr = b64_decode(aptr);
+			blen = b64_decoded_size(aptr);
+			free(aptr);
 
-			msg[0] ^= 0x01;
-			ghibcore.ibi_impls[i]->sigvrf(pubkey, signat, msg, strlen(msg), &rc);
-			assert(rc == 0);
+			blen =ghibcore.ibi_impls[i]->pkconstr(bptr, &pubkey);
+			assert(blen == ghibcore.ibi_impls[i]->pklen);
+			free(bptr);
+
+			ghibcore.ibi_impls[i]->issue(secret, msg, strlen(msg), &user);
+
+			blen = ghibcore.ibi_impls[i]->ukserial(user, &bptr);
+			assert(blen == ghibcore.ibi_impls[i]->ukbaselen + strlen(msg));
+			ghibcore.ibi_impls[i]->ukfree(user);
+
+			aptr = b64_encode(bptr, blen, BASE64_DEFAULT_WRAP);
+			free(bptr);
+			bptr = b64_decode(aptr);
+			blen = b64_decoded_size(aptr);
+			free(aptr);
+
+			blen = ghibcore.ibi_impls[i]->ukconstr(bptr, blen, &user);
+			assert(blen == ghibcore.ibi_impls[i]->ukbaselen + strlen(msg));
+			free(bptr);
+
+			ghibcore.ibi_impls[i]->validate(pubkey, user, &rc);
+			assert(rc==0);
+
+			//ghibcore.ibi_impls[i]->sigvrf(pubkey, user, msg, strlen(msg), &rc);
+			//assert(rc == 0);
+
+			//msg[0] ^= 0x01;
+			//ghibcore.ibi_impls[i]->sigvrf(pubkey, user, msg, strlen(msg), &rc);
+			//assert(rc < 0);
+
+			//msg[0] ^= 0x01;
+			//ghibcore.ibi_impls[i]->sigvrf(pubkey, user, msg, strlen(msg), &rc);
+			//assert(rc == 0);
 
 			//ghibcore.ibi_impls[i]->skprint(secret);
-			//ghibcore.ibi_impls[i]->sgprint(signat);
+			//ghibcore.ibi_impls[i]->sgprint(user);
 
-			ghibcore.ibi_impls[i]->prvinit(signat, msg, strlen(msg), &pst);
+			ghibcore.ibi_impls[i]->prvinit(user, &pst);
 			ghibcore.ibi_impls[i]->cmtgen(&pst, &cmt);
 			//printf("T1 :"); ucbprint(cmt, ghibcore.ibi_impls[i]->cmtlen); printf("\n");
 
@@ -67,7 +117,7 @@ int main(int argc, char *argv[]){
 			free(res);
 			ghibcore.ibi_impls[i]->skfree(secret);
 			ghibcore.ibi_impls[i]->pkfree(pubkey);
-			ghibcore.ibi_impls[i]->sgfree(signat);
+			ghibcore.ibi_impls[i]->ukfree(user);
 		}
 	}
 

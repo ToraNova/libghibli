@@ -20,27 +20,44 @@
  * SOFTWARE.
  */
 
-#ifndef __IBI_H_
-#define __IBI_H_
+#ifndef __IBI_H__
+#define __IBI_H__
 
 #include <stddef.h>
+
+struct __ibi_uk {
+	void *k;
+	size_t mlen;
+	unsigned char *m;
+};
 
 struct __ibi {
 	int (*init)(void); //crypto initialization
 	void (*keygen)(void **); //generate a random key
 	void (*pkext)(void *, void **); //obtain pubkey from secret
-	void (*siggen)( void *, const unsigned char *, size_t, void ** );
-	void (*sigvrf)(void *,void *, const unsigned char *, size_t, int *);
 	void (*skfree)(void *);
 	void (*pkfree)(void *);
-	void (*sgfree)(void *);
 	void (*skprint)(void *);
 	void (*pkprint)(void *);
-	void (*sgprint)(void *);
+	const size_t sklen;
+	const size_t pklen;
+	const size_t ukbaselen;
+	size_t (*skserial)(void *, unsigned char **);
+	size_t (*pkserial)(void *, unsigned char **);
+	size_t (*skconstr)(const unsigned char *, void **);
+	size_t (*pkconstr)(const unsigned char *, void **);
+
+	void (*issue)( void *, const unsigned char *, size_t, void ** );
+	void (*validate)(void *, void *, int *);
+	size_t (*idext)(void *, unsigned char **);
+	void (*ukfree)(void *);
+	void (*ukprint)(void *);
+	size_t (*ukserial)(void *, unsigned char **);
+	size_t (*ukconstr)(const unsigned char *, size_t, void **);
 
 	//used by prover
 	//generates a state information
-	void (*prvinit)(void *, const unsigned char *, size_t, void **);
+	void (*prvinit)(void *, void **);
 	void (*cmtgen)(void **, unsigned char **);
 	void (*resgen)(const unsigned char *, void *, unsigned char **);
 
@@ -52,19 +69,12 @@ struct __ibi {
 	const size_t cmtlen;
 	const size_t chalen;
 	const size_t reslen;
-
-	//TODO: DER encoding? base64? find a good way to serialize
-	//size_t (*secserial)(void *, unsigned char **, size_t *);
-	//size_t (*pubserial)(void *, unsigned char **, size_t *);
-	//size_t (*sigserial)(void *, unsigned char **, size_t *);
-	//void (*secstruct)(const unsigned char *, size_t, void **);
-	//void (*pubstruct)(const unsigned char *, size_t, void **);
-	//void (*sigstruct)(const unsigned char *, size_t, void **);
 };
 
-extern int __crypto_init(); //cryptographic backend initialization function
-extern const struct __ibi schibi;
-extern const struct __ibi tscibi;
+struct __ibi_uk *__ibi_ukinit(size_t);
+
+extern const struct __ibi schnorr_ibi;
+//extern const struct __ibi tscibi;
 
 extern const struct __ibi *ibi_impls[];
 
