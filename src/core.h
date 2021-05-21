@@ -22,17 +22,19 @@
 #ifndef __CORE_H__
 #define __CORE_H__
 
-#include "impl.h"
+#include "impl/ds.h"
+#include "impl/ibi.h"
 
 //core utils
-struct __core {
-	const int (*randombytes)(unsigned char *, unsigned int);
-	const int (*init)(int);
-	//ibi based functions
-	const struct __ibi **ibi_impls; //TODO: deprecate this
-	struct __ibi *ibi;
-};
+typedef struct __core {
+	int (*randbytes)(unsigned char *, size_t);
+	//interfaces
+	ds_if_t *ds;
+	ibi_if_t *ibi;
+} ghibc_t;
 
-extern struct __core ghibcore;
+extern ghibc_t gc;
+
+int ghibc_init(uint8_t an);
 
 #endif

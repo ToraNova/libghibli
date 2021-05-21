@@ -92,8 +92,8 @@ build_triplet = @build@
 host_triplet = @host@
 @COMPILERUNS_TRUE@bin_PROGRAMS = ghibc$(EXEEXT)
 @COMPILETESTS_TRUE@noinst_PROGRAMS = coretest$(EXEEXT) \
-@COMPILETESTS_TRUE@	example$(EXEEXT) ibitest$(EXEEXT) \
-@COMPILETESTS_TRUE@	schnorrtest$(EXEEXT)
+@COMPILETESTS_TRUE@	example$(EXEEXT) schnorrtest$(EXEEXT) \
+@COMPILETESTS_TRUE@	dstest$(EXEEXT) ibitest$(EXEEXT)
 subdir = src
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -143,7 +143,7 @@ libghibli_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
 am_libghibli_la_OBJECTS = utils/bufhelp.lo utils/simplesock.lo \
 	utils/futil.lo utils/jbase64.lo impl/crypto.lo impl/ibi.lo \
-	impl/schnorr.lo impl/heng.lo impl.lo core.lo ghibli.lo
+	impl/ds.lo impl/schnorr.lo impl/heng.lo core.lo ghibli.lo
 libghibli_la_OBJECTS = $(am_libghibli_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -156,6 +156,10 @@ am__coretest_SOURCES_DIST = tests/coretest.c
 @COMPILETESTS_TRUE@am_coretest_OBJECTS = tests/coretest.$(OBJEXT)
 coretest_OBJECTS = $(am_coretest_OBJECTS)
 @COMPILETESTS_TRUE@coretest_DEPENDENCIES = libghibli.la
+am__dstest_SOURCES_DIST = tests/dstest.c
+@COMPILETESTS_TRUE@am_dstest_OBJECTS = tests/dstest.$(OBJEXT)
+dstest_OBJECTS = $(am_dstest_OBJECTS)
+@COMPILETESTS_TRUE@dstest_DEPENDENCIES = libghibli.la
 am__example_SOURCES_DIST = tests/example.c
 @COMPILETESTS_TRUE@am_example_OBJECTS = tests/example.$(OBJEXT)
 example_OBJECTS = $(am_example_OBJECTS)
@@ -168,9 +172,9 @@ am__ibitest_SOURCES_DIST = tests/ibitest.c
 @COMPILETESTS_TRUE@am_ibitest_OBJECTS = tests/ibitest.$(OBJEXT)
 ibitest_OBJECTS = $(am_ibitest_OBJECTS)
 @COMPILETESTS_TRUE@ibitest_DEPENDENCIES = libghibli.la
-am__schnorrtest_SOURCES_DIST = tests/schnorrtest.c
+am__schnorrtest_SOURCES_DIST = tests/schibitest.c
 @COMPILETESTS_TRUE@am_schnorrtest_OBJECTS =  \
-@COMPILETESTS_TRUE@	tests/schnorrtest.$(OBJEXT)
+@COMPILETESTS_TRUE@	tests/schibitest.$(OBJEXT)
 schnorrtest_OBJECTS = $(am_schnorrtest_OBJECTS)
 @COMPILETESTS_TRUE@schnorrtest_DEPENDENCIES = libghibli.la
 AM_V_P = $(am__v_P_@AM_V@)
@@ -189,13 +193,14 @@ DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/core.Plo ./$(DEPDIR)/ghibc_cli.Po \
-	./$(DEPDIR)/ghibli.Plo ./$(DEPDIR)/impl.Plo \
-	impl/$(DEPDIR)/crypto.Plo impl/$(DEPDIR)/heng.Plo \
+	./$(DEPDIR)/ghibli.Plo impl/$(DEPDIR)/crypto.Plo \
+	impl/$(DEPDIR)/ds.Plo impl/$(DEPDIR)/heng.Plo \
 	impl/$(DEPDIR)/ibi.Plo impl/$(DEPDIR)/schnorr.Plo \
-	tests/$(DEPDIR)/coretest.Po tests/$(DEPDIR)/example.Po \
-	tests/$(DEPDIR)/ibitest.Po tests/$(DEPDIR)/schnorrtest.Po \
-	utils/$(DEPDIR)/bufhelp.Plo utils/$(DEPDIR)/futil.Plo \
-	utils/$(DEPDIR)/jbase64.Plo utils/$(DEPDIR)/simplesock.Plo
+	tests/$(DEPDIR)/coretest.Po tests/$(DEPDIR)/dstest.Po \
+	tests/$(DEPDIR)/example.Po tests/$(DEPDIR)/ibitest.Po \
+	tests/$(DEPDIR)/schibitest.Po utils/$(DEPDIR)/bufhelp.Plo \
+	utils/$(DEPDIR)/futil.Plo utils/$(DEPDIR)/jbase64.Plo \
+	utils/$(DEPDIR)/simplesock.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -216,11 +221,12 @@ am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
 SOURCES = $(libghibli_la_SOURCES) $(coretest_SOURCES) \
-	$(example_SOURCES) $(ghibc_SOURCES) $(ibitest_SOURCES) \
-	$(schnorrtest_SOURCES)
+	$(dstest_SOURCES) $(example_SOURCES) $(ghibc_SOURCES) \
+	$(ibitest_SOURCES) $(schnorrtest_SOURCES)
 DIST_SOURCES = $(libghibli_la_SOURCES) $(am__coretest_SOURCES_DIST) \
-	$(am__example_SOURCES_DIST) $(am__ghibc_SOURCES_DIST) \
-	$(am__ibitest_SOURCES_DIST) $(am__schnorrtest_SOURCES_DIST)
+	$(am__dstest_SOURCES_DIST) $(am__example_SOURCES_DIST) \
+	$(am__ghibc_SOURCES_DIST) $(am__ibitest_SOURCES_DIST) \
+	$(am__schnorrtest_SOURCES_DIST)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -374,10 +380,9 @@ top_srcdir = @top_srcdir@
 # if this is used, the SHARED library file is also compiled
 lib_LTLIBRARIES = libghibli.la
 libghibli_la_SOURCES = utils/bufhelp.c utils/simplesock.c utils/futil.c utils/jbase64.c \
-			impl/crypto.c impl/ibi.c \
+			impl/crypto.c impl/ibi.c impl/ds.c \
 			impl/schnorr.c impl/heng.c \
-			impl.c core.c \
-			ghibli.c
+			core.c ghibli.c
 
 libghibli_la_LDFLAGS = -lsodium
 
@@ -390,10 +395,12 @@ include_HEADERS = ghibli.h
 @COMPILETESTS_TRUE@coretest_LDADD = libghibli.la
 @COMPILETESTS_TRUE@example_SOURCES = tests/example.c
 @COMPILETESTS_TRUE@example_LDADD = libghibli.la
+@COMPILETESTS_TRUE@schnorrtest_SOURCES = tests/schibitest.c
+@COMPILETESTS_TRUE@schnorrtest_LDADD = libghibli.la
+@COMPILETESTS_TRUE@dstest_SOURCES = tests/dstest.c
+@COMPILETESTS_TRUE@dstest_LDADD = libghibli.la
 @COMPILETESTS_TRUE@ibitest_SOURCES = tests/ibitest.c
 @COMPILETESTS_TRUE@ibitest_LDADD = libghibli.la
-@COMPILETESTS_TRUE@schnorrtest_SOURCES = tests/schnorrtest.c
-@COMPILETESTS_TRUE@schnorrtest_LDADD = libghibli.la
 all: all-am
 
 .SUFFIXES:
@@ -541,6 +548,7 @@ impl/$(DEPDIR)/$(am__dirstamp):
 	@: > impl/$(DEPDIR)/$(am__dirstamp)
 impl/crypto.lo: impl/$(am__dirstamp) impl/$(DEPDIR)/$(am__dirstamp)
 impl/ibi.lo: impl/$(am__dirstamp) impl/$(DEPDIR)/$(am__dirstamp)
+impl/ds.lo: impl/$(am__dirstamp) impl/$(DEPDIR)/$(am__dirstamp)
 impl/schnorr.lo: impl/$(am__dirstamp) impl/$(DEPDIR)/$(am__dirstamp)
 impl/heng.lo: impl/$(am__dirstamp) impl/$(DEPDIR)/$(am__dirstamp)
 
@@ -558,6 +566,12 @@ tests/coretest.$(OBJEXT): tests/$(am__dirstamp) \
 coretest$(EXEEXT): $(coretest_OBJECTS) $(coretest_DEPENDENCIES) $(EXTRA_coretest_DEPENDENCIES) 
 	@rm -f coretest$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(coretest_OBJECTS) $(coretest_LDADD) $(LIBS)
+tests/dstest.$(OBJEXT): tests/$(am__dirstamp) \
+	tests/$(DEPDIR)/$(am__dirstamp)
+
+dstest$(EXEEXT): $(dstest_OBJECTS) $(dstest_DEPENDENCIES) $(EXTRA_dstest_DEPENDENCIES) 
+	@rm -f dstest$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(dstest_OBJECTS) $(dstest_LDADD) $(LIBS)
 tests/example.$(OBJEXT): tests/$(am__dirstamp) \
 	tests/$(DEPDIR)/$(am__dirstamp)
 
@@ -574,7 +588,7 @@ tests/ibitest.$(OBJEXT): tests/$(am__dirstamp) \
 ibitest$(EXEEXT): $(ibitest_OBJECTS) $(ibitest_DEPENDENCIES) $(EXTRA_ibitest_DEPENDENCIES) 
 	@rm -f ibitest$(EXEEXT)
 	$(AM_V_CCLD)$(LINK) $(ibitest_OBJECTS) $(ibitest_LDADD) $(LIBS)
-tests/schnorrtest.$(OBJEXT): tests/$(am__dirstamp) \
+tests/schibitest.$(OBJEXT): tests/$(am__dirstamp) \
 	tests/$(DEPDIR)/$(am__dirstamp)
 
 schnorrtest$(EXEEXT): $(schnorrtest_OBJECTS) $(schnorrtest_DEPENDENCIES) $(EXTRA_schnorrtest_DEPENDENCIES) 
@@ -595,15 +609,16 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/core.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ghibc_cli.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ghibli.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/impl.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@impl/$(DEPDIR)/crypto.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@impl/$(DEPDIR)/ds.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@impl/$(DEPDIR)/heng.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@impl/$(DEPDIR)/ibi.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@impl/$(DEPDIR)/schnorr.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/coretest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/dstest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/example.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/ibitest.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/schnorrtest.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@tests/$(DEPDIR)/schibitest.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/bufhelp.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/futil.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@utils/$(DEPDIR)/jbase64.Plo@am__quote@ # am--include-marker
@@ -807,15 +822,16 @@ distclean: distclean-am
 		-rm -f ./$(DEPDIR)/core.Plo
 	-rm -f ./$(DEPDIR)/ghibc_cli.Po
 	-rm -f ./$(DEPDIR)/ghibli.Plo
-	-rm -f ./$(DEPDIR)/impl.Plo
 	-rm -f impl/$(DEPDIR)/crypto.Plo
+	-rm -f impl/$(DEPDIR)/ds.Plo
 	-rm -f impl/$(DEPDIR)/heng.Plo
 	-rm -f impl/$(DEPDIR)/ibi.Plo
 	-rm -f impl/$(DEPDIR)/schnorr.Plo
 	-rm -f tests/$(DEPDIR)/coretest.Po
+	-rm -f tests/$(DEPDIR)/dstest.Po
 	-rm -f tests/$(DEPDIR)/example.Po
 	-rm -f tests/$(DEPDIR)/ibitest.Po
-	-rm -f tests/$(DEPDIR)/schnorrtest.Po
+	-rm -f tests/$(DEPDIR)/schibitest.Po
 	-rm -f utils/$(DEPDIR)/bufhelp.Plo
 	-rm -f utils/$(DEPDIR)/futil.Plo
 	-rm -f utils/$(DEPDIR)/jbase64.Plo
@@ -868,15 +884,16 @@ maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/core.Plo
 	-rm -f ./$(DEPDIR)/ghibc_cli.Po
 	-rm -f ./$(DEPDIR)/ghibli.Plo
-	-rm -f ./$(DEPDIR)/impl.Plo
 	-rm -f impl/$(DEPDIR)/crypto.Plo
+	-rm -f impl/$(DEPDIR)/ds.Plo
 	-rm -f impl/$(DEPDIR)/heng.Plo
 	-rm -f impl/$(DEPDIR)/ibi.Plo
 	-rm -f impl/$(DEPDIR)/schnorr.Plo
 	-rm -f tests/$(DEPDIR)/coretest.Po
+	-rm -f tests/$(DEPDIR)/dstest.Po
 	-rm -f tests/$(DEPDIR)/example.Po
 	-rm -f tests/$(DEPDIR)/ibitest.Po
-	-rm -f tests/$(DEPDIR)/schnorrtest.Po
+	-rm -f tests/$(DEPDIR)/schibitest.Po
 	-rm -f utils/$(DEPDIR)/bufhelp.Plo
 	-rm -f utils/$(DEPDIR)/futil.Plo
 	-rm -f utils/$(DEPDIR)/jbase64.Plo

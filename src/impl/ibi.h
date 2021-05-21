@@ -23,59 +23,79 @@
 #ifndef __IBI_H__
 #define __IBI_H__
 
+#include "ds.h"
 #include <stddef.h>
+#include <stdint.h>
 
-struct __ibi_uk {
-	void *k;
+typedef struct __ibi_u {
+	uint8_t an; //algo type
+	void *k; //key pointer
 	size_t mlen;
-	unsigned char *m;
-};
+	uint8_t *m; //user id
+} ibi_u_t;
 
-struct __ibi {
-	int (*init)(void); //crypto initialization
-	void (*keygen)(void **); //generate a random key
-	void (*pkext)(void *, void **); //obtain pubkey from secret
-	void (*skfree)(void *);
-	void (*pkfree)(void *);
-	void (*skprint)(void *);
-	void (*pkprint)(void *);
-	const size_t sklen;
-	const size_t pklen;
-	const size_t ukbaselen;
-	size_t (*skserial)(void *, unsigned char **);
-	size_t (*pkserial)(void *, unsigned char **);
-	size_t (*skconstr)(const unsigned char *, void **);
-	size_t (*pkconstr)(const unsigned char *, void **);
+typedef struct __ibi_protst {
+	uint8_t an; //algo type
+	void *st; //protocol state
+} ibi_protst_t;
 
-	void (*issue)( void *, const unsigned char *, size_t, void ** );
-	void (*validate)(void *, void *, int *);
-	size_t (*idext)(void *, unsigned char **);
-	void (*ukfree)(void *);
-	void (*ukprint)(void *);
-	size_t (*ukserial)(void *, unsigned char **);
-	size_t (*ukconstr)(const unsigned char *, size_t, void **);
-
+// ibi from kurosawa-heng transforms (DS+HVZK)
+typedef struct __ibi {
+	ds_t *ds;
 	//used by prover
 	//generates a state information
-	void (*prvinit)(void *, void **);
-	void (*cmtgen)(void **, unsigned char **);
-	void (*resgen)(const unsigned char *, void *, unsigned char **);
+	void (*prvinit)(void *vusk, const uint8_t *mbuf, size_t mlen, void **state);
+	void (*cmtgen)(void **, uint8_t *);
+	void (*resgen)(const uint8_t *, void *, uint8_t *);
 
 	//used by verifier
-	void (*verinit)(void *, const unsigned char *, size_t, void **);
-	void (*chagen)(const unsigned char *, void **, unsigned char **);
-	void (*protdc)(const unsigned char *, void *, int *);
+	void (*verinit)(void *, const uint8_t *, size_t, void **);
+	void (*chagen)(const uint8_t *, void **, uint8_t *);
+	void (*protdc)(const uint8_t *, void *, int *);
 
 	const size_t cmtlen;
 	const size_t chalen;
 	const size_t reslen;
-};
+} ibi_t;
 
-struct __ibi_uk *__ibi_ukinit(size_t);
+extern const ibi_t heng;
 
-extern const struct __ibi schnorr_ibi;
-//extern const struct __ibi tscibi;
+typedef struct __ibi_if {
+	void (*setup)(uint8_t, void **, void **); //generate a ds_k_t sk and pk (setup)
+	void (*issue)( void *, const uint8_t *, size_t, void ** ); //issue new user key
+	void (*validate)(void *, void *, int *); //validate user key
 
-extern const struct __ibi *ibi_impls[];
+	//generates a state information
+	void (*prvinit)(void *, void **);
+	void (*cmtgen)(void **, uint8_t *);
+	void (*resgen)(const uint8_t *, void *, uint8_t *);
+	//used by verifier
+	void (*verinit)(void *, const uint8_t *, size_t, void **);
+	void (*chagen)(const uint8_t *, void **, uint8_t *);
+	void (*protdc)(const uint8_t *, void *, int *);
 
+	void (*kfree)(void *); //free a sk/pk
+	void (*ufree)(void *); //free a user key
+	uint8_t (*karead)(void *);
+	uint8_t (*ktread)(void *);
+	uint8_t (*uaread)(void *);
+	void (*uiread)(void *, uint8_t **, size_t *);
+	size_t (*kserial)(void *, uint8_t *);
+	size_t (*userial)(void *, uint8_t *);
+	size_t (*kconstr)(const uint8_t *, void **);
+	size_t (*uconstr)(const uint8_t *, size_t, void **);
+
+	size_t (*pklen)(uint8_t);
+	size_t (*sklen)(uint8_t);
+	size_t (*ukbslen)(uint8_t);
+	void (*kprint)(void *); //debugging
+	void (*uprint)(void *);
+	size_t (*cmtlen)(uint8_t);
+	size_t (*chalen)(uint8_t);
+	size_t (*reslen)(uint8_t);
+} ibi_if_t;
+
+extern const ibi_if_t ibi;
+
+ibi_t *get_ibi_impl(uint8_t an);
 #endif

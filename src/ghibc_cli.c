@@ -98,7 +98,7 @@ int main(int argc, char *argv[], char *envp[]){
 				return -1;
 			}
 			snprintf(tcb, 128, "%s.pub", arguments.mskfile);
-			ghibfile.mastergen(arguments.mskfile, tcb, arguments.algo);
+			ghibfile.setup(arguments.mskfile, tcb, arguments.algo);
 			printf("Master key generated to files %s and %s\n",arguments.mskfile, tcb);
 			break;
 		case USKGEN:
@@ -106,7 +106,7 @@ int main(int argc, char *argv[], char *envp[]){
 				fprintf(stderr,"Unspecified msk(-s)/usk(-u)/identity(-i) file in issue mode.\n");
 				return -1;
 			}
-			ghibfile.usergen(arguments.mskfile, arguments.uskfile, arguments.uident, arguments.algo);
+			ghibfile.issue(arguments.mskfile, arguments.uskfile, arguments.uident, arguments.algo);
 			printf("User key (%s) generated to file %s.\n", arguments.uident, arguments.uskfile);
 			break;
 		case USKVRF:
@@ -114,7 +114,7 @@ int main(int argc, char *argv[], char *envp[]){
 				fprintf(stderr,"Unspecified mpk(-p)/usk(-u) file in validate mode.\n");
 				return -1;
 			}
-			rc = ghibfile.userval(arguments.mpkfile, arguments.uskfile, arguments.algo, &arguments.uident, &len);
+			rc = ghibfile.keycheck(arguments.mpkfile, arguments.uskfile, arguments.algo, &arguments.uident, &len);
 			if(rc == 0){
 				printf("User key (%s) on file %s is valid.\n", arguments.uident, arguments.uskfile);
 			}
@@ -124,7 +124,7 @@ int main(int argc, char *argv[], char *envp[]){
 				fprintf(stderr,"Unspecified usk(-u) file in agent mode.\n");
 				return -1;
 			}
-			break;
+			ghibfile.agent(arguments.uskfile, arguments.algo);
 		default:
 			fprintf(stderr,"Mode error.\n");
 	}

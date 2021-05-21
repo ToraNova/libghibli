@@ -26,30 +26,29 @@
 #include "../utils/bufhelp.h"
 #include "../utils/debug.h"
 #include "__crypto.h"
-#include "schnorr.h"
 #include "ds.h"
-
+#include "schnorr.h"
 
 // memory allocation
 struct __schnorr_pk *__schnorr_pkinit(void){
 	struct __schnorr_pk *out;
 	out = (struct __schnorr_pk *)malloc( sizeof(struct __schnorr_pk) );
-	out->A = (unsigned char *)malloc( RRE );
+	out->A = (uint8_t *)malloc( RRE );
 	return out;
 }
 struct __schnorr_sk *__schnorr_skinit(void){
 	struct __schnorr_sk *out;
 	out = (struct __schnorr_sk *)sodium_malloc( sizeof(struct __schnorr_sk) );
-	out->a = (unsigned char *)sodium_malloc( RRS );
+	out->a = (uint8_t *)sodium_malloc( RRS );
 	out->pub = __schnorr_pkinit();
 	return out;
 }
 struct __schnorr_sg *__schnorr_sginit(void){
 	struct __schnorr_sg *out;
 	out = (struct __schnorr_sg *)sodium_malloc( sizeof( struct __schnorr_sg) );
-	out->s = (unsigned char *)sodium_malloc( RRS );
-	out->x = (unsigned char *)sodium_malloc( RRS );
-	out->U = (unsigned char *)sodium_malloc( RRE );
+	out->s = (uint8_t *)sodium_malloc( RRS );
+	out->x = (uint8_t *)sodium_malloc( RRS );
+	out->U = (uint8_t *)sodium_malloc( RRE );
 	return out;
 }
 
@@ -87,11 +86,11 @@ void __schnorr_sgfree(void *in){
 	sodium_free(ri);
 }
 
-void __schnorr_randkeygen(void **out){
+void __schnorr_skgen(void **out){
 	int rc;
 	//declare and allocate memory for key
 	struct __schnorr_sk *tmp = __schnorr_skinit();
-	unsigned char neg[RRS];
+	uint8_t neg[RRS];
 
 	//sample secret a
 	crypto_core_ristretto255_scalar_random( tmp->a );
@@ -107,7 +106,7 @@ void __schnorr_randkeygen(void **out){
 	*out = (void *) tmp;
 }
 
-void __schnorr_getpubkey(void *vkey, void **out){
+void __schnorr_pkext(void *vkey, void **out){
 	//key recast
 	struct __schnorr_sk *key = ((struct __schnorr_sk *)vkey);
 	//allocate for pk
@@ -118,13 +117,13 @@ void __schnorr_getpubkey(void *vkey, void **out){
 
 //assumes arr is alloc with RRS
 void __schnorr_hashexec(
-	const unsigned char *mbuf, size_t mlen,
-	unsigned char *ubuf,
-	unsigned char *vbuf,
-	unsigned char *oarr
+	const uint8_t *mbuf, size_t mlen,
+	uint8_t *ubuf,
+	uint8_t *vbuf,
+	uint8_t *oarr
 ){
 	crypto_hash_sha512_state state;
-	unsigned char tbuf[RRH]; //hash
+	uint8_t tbuf[RRH]; //hash
 	//compute hash
 	crypto_hash_sha512_init( &state );
 	crypto_hash_sha512_update( &state, mbuf, mlen);
@@ -132,13 +131,13 @@ void __schnorr_hashexec(
 	crypto_hash_sha512_update( &state, vbuf, RRE);
 	crypto_hash_sha512_final( &state, tbuf);
 	crypto_core_ristretto255_scalar_reduce(
-		oarr, (const unsigned char *)tbuf
+		oarr, (const uint8_t *)tbuf
 	);
 }
 
-void __schnorr_signatgen(
+void __schnorr_siggen(
 	void *vkey,
-	const unsigned char *mbuf, size_t mlen,
+	const uint8_t *mbuf, size_t mlen,
 	void **out
 ){
 	int rc;
@@ -149,7 +148,7 @@ void __schnorr_signatgen(
 
 	//--------------------------TODO START
 	//nonce, r and hash
-	unsigned char nonce[RRS];
+	uint8_t nonce[RRS];
 
 	//sample r (MUST RANDOMIZE, else secret key a will be exposed)
 	crypto_core_ristretto255_scalar_random(nonce);
@@ -170,31 +169,24 @@ void __schnorr_signatgen(
 	*out = (void *) tmp;
 }
 
-void __schnorr_signatchk(
+void __schnorr_sigvrf(
 	void *vpar,
 	void *vsig,
-	const unsigned char *mbuf, size_t mlen,
+	const uint8_t *mbuf, size_t mlen,
 	int *res
 ){
 	//key recast
-	unsigned char xp[RRS];
+	uint8_t xp[RRS];
 	struct __schnorr_pk *par = (struct __schnorr_pk *)vpar;
 	struct __schnorr_sg *sig = (struct __schnorr_sg *)vsig;
 
 	//--------------------------TODO START
-	unsigned char tmp1[RRE]; //tmp array
-	unsigned char tmp2[RRE]; //tmp array
+	uint8_t tmp1[RRE]; //tmp array
+	uint8_t tmp2[RRE]; //tmp array
 
 	// U' = sB - A
-	*res = crypto_scalarmult_ristretto255_base(
-			tmp1,
-			sig->s
-			);
-	*res += crypto_scalarmult_ristretto255(
-			tmp2,
-			sig->x,
-			par->A
-			);
+	*res = crypto_scalarmult_ristretto255_base( tmp1, sig->s);
+	*res += crypto_scalarmult_ristretto255( tmp2, sig->x, par->A);
 	*res += crypto_core_ristretto255_add( tmp1, tmp1, tmp2 ); //tmp3 U'
 
 	__schnorr_hashexec(mbuf, mlen, tmp1, par->A, xp);
@@ -223,40 +215,40 @@ void __schnorr_sgprint(void *in){
 	printf("U :"); ucbprint(ri->U, RRE); printf("\n");
 }
 
-size_t __schnorr_skserial(void *in, unsigned char **out){
+size_t __schnorr_skserial(void *in, uint8_t *out){
 	size_t rs;
 	struct __schnorr_sk *ri = (struct __schnorr_sk *)in;//recast the key
 	//set size and allocate
-	*out = (unsigned char *)malloc( SCHNORR_SKLEN );
+	//*out = (uint8_t *)malloc( SCHNORR_SKLEN );
 	//a, A
-	rs = copyskip( *out, ri->a, 		0, 	RRS);
-	rs = copyskip( *out, ri->pub->A, 	rs, 	RRE);
+	rs = copyskip( out, ri->a, 		0, 	RRS);
+	rs = copyskip( out, ri->pub->A, 	rs, 	RRE);
 	return rs;
 }
 
-size_t __schnorr_pkserial(void *in, unsigned char **out){
+size_t __schnorr_pkserial(void *in, uint8_t *out){
 	size_t rs;
 	struct __schnorr_pk *ri = (struct __schnorr_pk *)in;//recast the key
 	//set size and allocate
-	*out = (unsigned char *)malloc( SCHNORR_PKLEN );
+	//*out = (uint8_t *)malloc( SCHNORR_PKLEN );
 	// A
-	rs = copyskip( *out, ri->A, 	0, 	RRE);
+	rs = copyskip( out, ri->A, 	0, 	RRE);
 	return rs;
 }
 
-size_t __schnorr_sgserial(void *in, unsigned char **out){
+size_t __schnorr_sgserial(void *in, uint8_t *out){
 	size_t rs;
 	struct __schnorr_sg *ri = (struct __schnorr_sg *)in;//recast the obj
 	//set size and allocate
-	*out = (unsigned char *)malloc( SCHNORR_SGLEN );
+	//*out = (uint8_t *)malloc( SCHNORR_SGLEN );
 	//s, x, U
-	rs = copyskip( *out, ri->s, 	0, 	RRS);
-	rs = copyskip( *out, ri->x, 	rs, 	RRS);
-	rs = copyskip( *out, ri->U, 	rs, 	RRE);
+	rs = copyskip( out, ri->s, 	0, 	RRS);
+	rs = copyskip( out, ri->x, 	rs, 	RRS);
+	rs = copyskip( out, ri->U, 	rs, 	RRE);
 	return rs;
 }
 
-size_t __schnorr_skconstr(const unsigned char *in, void **out){
+size_t __schnorr_skconstr(const uint8_t *in, void **out){
 	size_t rs;
 	struct __schnorr_sk *tmp;
 	//allocate memory for seckey
@@ -268,7 +260,7 @@ size_t __schnorr_skconstr(const unsigned char *in, void **out){
 	return rs;
 }
 
-size_t __schnorr_pkconstr(const unsigned char *in, void **out){
+size_t __schnorr_pkconstr(const uint8_t *in, void **out){
 	size_t rs;
 	struct __schnorr_pk *tmp;
 	//allocate memory for seckey
@@ -279,7 +271,7 @@ size_t __schnorr_pkconstr(const unsigned char *in, void **out){
 	return rs;
 }
 
-size_t __schnorr_sgconstr(const unsigned char *in, void **out){
+size_t __schnorr_sgconstr(const uint8_t *in, void **out){
 	size_t rs;
 	struct __schnorr_sg *tmp;
 	//allocate memory for seckey
@@ -292,25 +284,24 @@ size_t __schnorr_sgconstr(const unsigned char *in, void **out){
 	return rs;
 }
 
-const struct __dss schnorr = {
-	.init = __sodium_init,
-	.keygen = __schnorr_randkeygen,
-	.pkext = __schnorr_getpubkey,
-	.siggen = __schnorr_signatgen,
-	.sigvrf = __schnorr_signatchk,
+const ds_t schnorr = {
+	.skgen = __schnorr_skgen,
+	.pkext = __schnorr_pkext,
+	.siggen = __schnorr_siggen,
+	.sigvrf = __schnorr_sigvrf,
 	.skfree = __schnorr_skfree,
 	.pkfree = __schnorr_pkfree,
 	.sgfree = __schnorr_sgfree,
 	.skprint = __schnorr_skprint,
 	.pkprint = __schnorr_pkprint,
 	.sgprint = __schnorr_sgprint,
-	.sklen = SCHNORR_SKLEN,
-	.pklen = SCHNORR_PKLEN,
-	.sglen = SCHNORR_SGLEN,
 	.skserial = __schnorr_skserial,
 	.pkserial = __schnorr_pkserial,
 	.sgserial = __schnorr_sgserial,
 	.skconstr = __schnorr_skconstr,
 	.pkconstr = __schnorr_pkconstr,
 	.sgconstr = __schnorr_sgconstr,
+	.sklen = SCHNORR_SKLEN,
+	.pklen = SCHNORR_PKLEN,
+	.sglen = SCHNORR_SGLEN,
 };

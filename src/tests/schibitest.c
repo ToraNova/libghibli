@@ -66,27 +66,25 @@ int main(int argc, char *argv[]){
 	schnorr.pkprint(pubkey);
 	schnorr.sgprint(signat);
 
-	//unsigned char *cmt, *cha, *res;
-	//void *pst, *vst;
-	//int dec;
-	//schnorr.prvinit(signat, msg, strlen(msg), &pst);
-	//schnorr.cmtgen(&pst, &cmt);
-	//printf("T1 :"); ucbprint(cmt, schnorr.cmtlen); printf("\n");
+	unsigned char cmt[160];
+	unsigned char cha[64];
+	unsigned char res[160];
+	void *pst, *vst;
 
-	//schnorr.verinit(pubkey, msg, strlen(msg), &vst);
-	//schnorr.chagen(cmt, &vst, &cha);
-	//printf("T2 :"); ucbprint(cha, schnorr.chalen); printf("\n");
+	heng.prvinit(signat, msg, strlen(msg), &pst);
+	heng.cmtgen(&pst, cmt);
+	printf("T1 :"); ucbprint(cmt, heng.cmtlen); printf("\n");
 
-	//schnorr.resgen(cha, pst, &res);
-	//printf("T3 :"); ucbprint(res, schnorr.reslen); printf("\n");
+	heng.verinit(pubkey, msg, strlen(msg), &vst);
+	heng.chagen(cmt, &vst, cha);
+	printf("T2 :"); ucbprint(cha, heng.chalen); printf("\n");
 
-	//schnorr.protdc(res, vst, &dec);
-	//assert(dec == 0); //OK
-	//printf("prot : %d\n",dec);
+	heng.resgen(cha, pst, res);
+	printf("T3 :"); ucbprint(res, heng.reslen); printf("\n");
 
-	//free(cmt);
-	//free(cha);
-	//free(res);
+	heng.protdc(res, vst, &rc);
+	assert(rc == 0); //OK
+	printf("prot : %d\n",rc);
 
 	schnorr.skfree(secret);
 	schnorr.pkfree(pubkey);

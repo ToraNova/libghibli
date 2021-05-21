@@ -28,9 +28,10 @@
 #include "core.h"
 
 struct __ghibli_file {
-	int (*mastergen)(char *, char *, int);
-	int (*usergen)(char *, char *, char *, int);
-	int (*userval)(char *, char *, int, char **, size_t *);
+	int (*setup)(char *, char *, int);
+	int (*issue)(char *, char *, char *, int);
+	int (*keycheck)(char *, char *, int, char **, size_t *);
+	int (*agent)(char *, int);
 };
 
 extern const struct __ghibli_file ghibfile;

@@ -21,24 +21,23 @@
  */
 #include <stdio.h>
 #include "core.h"
+#include "impl/__crypto.h"
 
-int __init(int);
+ghibc_t gc;
 
-int __urandom_bytes(unsigned char *arr, unsigned int rc){
+int __urandom_bytes(unsigned char *arr, size_t rc){
 	FILE *udr = fopen("/dev/urandom", "rb");
 	fread(arr, 1, rc, udr);
 	fclose(udr);
 	return 0;
 }
 
-struct __core ghibcore = {
-	.init = __init,
-	.randombytes = __urandom_bytes,
-	.ibi_impls = (const struct __ibi **) &ibi_impls,
-	.ibi = NULL,
-};
+int ghibc_init(uint8_t an){
+	gc.randbytes = &(__urandom_bytes);
 
-int __init(int an){
-	ghibcore.ibi = init_ibi_impl(an);
-	return ghibcore.ibi->init();
+	int rc = __sodium_init();
+
+	gc.ds = (ds_if_t *) &ds;
+	gc.ibi = (ibi_if_t *) &ibi;
+	return rc;
 }

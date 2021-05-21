@@ -19,7 +19,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
 #ifndef __SCHNORR_H__
 #define __SCHNORR_H__
 
@@ -42,10 +41,38 @@ struct __schnorr_sg {
 	unsigned char *U; //precomputation
 };
 
-void __schnorr_hashexec(
-	const uint8_t *mbuf, size_t mlen,
-	uint8_t *ubuf,
-	uint8_t *vbuf,
-	uint8_t *oarr
-);
+// memory allocation
+struct __schnorr_pk *__schnorr_pkinit(void);
+struct __schnorr_sk *__schnorr_skinit(void);
+struct __schnorr_sg *__schnorr_sginit(void);
+
+//memory free
+void __schnorr_pkfree(void *in);
+void __schnorr_skfree(void *in);
+void __schnorr_sgfree(void *in);
+
+void __schnorr_skgen(void **out);
+void __schnorr_pkext(void *vkey, void **out);
+
+//assumes arr is alloc with RRS
+void __schnorr_hashexec( const unsigned char *mbuf, size_t mlen, unsigned char *ubuf, unsigned char *vbuf, unsigned char *oarr);
+
+void __schnorr_siggen( void *vkey, const unsigned char *mbuf, size_t mlen, void **out);
+
+void __schnorr_sigvrf( void *vpar, void *vsig, const unsigned char *mbuf, size_t mlen, int *res);
+
+//debugging use only
+void __schnorr_pkprint(void *in);
+void __schnorr_skprint(void *in);
+void __schnorr_sgprint(void *in);
+
+//serialize and unserialize functions
+size_t __schnorr_skserial(void *in, unsigned char *out);
+size_t __schnorr_pkserial(void *in, unsigned char *out);
+size_t __schnorr_sgserial(void *in, unsigned char *out);
+
+size_t __schnorr_skconstr(const unsigned char *in, void **out);
+size_t __schnorr_pkconstr(const unsigned char *in, void **out);
+size_t __schnorr_sgconstr(const unsigned char *in, void **out);
+
 #endif
