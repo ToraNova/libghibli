@@ -21,7 +21,7 @@ int main(int argc, char *argv[]){
 	unsigned char bptr[160];
 	size_t blen;
 
-	ghibc_init(0); //doesn't matter, not using gc
+	ghibc_init(); //doesn't matter, not using gc
 
 	schnorr.skgen(&secret);
 

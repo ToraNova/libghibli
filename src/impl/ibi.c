@@ -60,8 +60,9 @@ uint8_t __ibi_uaread(void *in){
 void __ibi_uiread(void *in, uint8_t **out, size_t *len){
 	ibi_u_t *ri = (ibi_u_t *)in;
 	*len = ri->mlen;
-	*out = (uint8_t *)malloc( *len );
+	*out = (uint8_t *)malloc( (*len) + 1 );
 	memcpy(*out, ri->m, *len);
+	(*out)[*len] = 0; //null char
 }
 
 // base length of a user key (not including length of signature

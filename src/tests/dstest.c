@@ -24,10 +24,10 @@ int main(int argc, char *argv[]){
 	char *aptr;
 	unsigned char *bptr;
 
+	ghibc_init(); //uses whatev backend we use
 	for(int i=0;i<1;i++){
 		printf("testing ds-algo %d\n",i);
 		//gc.init(i);
-		ghibc_init(i); //uses whatev backend we use
 		for(int j=0;j<100;j++){
 			gc.randbytes(msg, 64);
 			//keygen

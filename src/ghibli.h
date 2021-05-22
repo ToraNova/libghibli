@@ -29,9 +29,10 @@
 
 struct __ghibli_file {
 	int (*setup)(char *, char *, int);
-	int (*issue)(char *, char *, char *, int);
-	int (*keycheck)(char *, char *, int, char **, size_t *);
-	int (*agent)(char *, int);
+	int (*issue)(char *, char *, char *);
+	int (*keycheck)(char *, char *, char **, size_t *);
+	int (*agent)(char *);
+	int (*pingver)(char *, char *, size_t, char *, size_t);
 };
 
 extern const struct __ghibli_file ghibfile;

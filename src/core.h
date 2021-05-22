@@ -35,6 +35,6 @@ typedef struct __core {
 
 extern ghibc_t gc;
 
-int ghibc_init(uint8_t an);
+int ghibc_init(void);
 
 #endif

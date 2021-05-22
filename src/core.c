@@ -32,7 +32,7 @@ int __urandom_bytes(unsigned char *arr, size_t rc){
 	return 0;
 }
 
-int ghibc_init(uint8_t an){
+int ghibc_init(void){
 	gc.randbytes = &(__urandom_bytes);
 
 	int rc = __sodium_init();

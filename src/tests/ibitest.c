@@ -29,10 +29,11 @@ int main(int argc, char *argv[]){
 	char *aptr;
 	unsigned char *bptr;
 
+	ghibc_init(); //uses whatev backend we use
+
 	for(int i=0;i<1;i++){
 		printf("testing ibi-algo %d\n",i);
 		//gc.init(i);
-		ghibc_init(i); //uses whatev backend we use
 		for(int j=0;j<100;j++){
 			gc.randbytes(msg, 64);
 			//printf("m :"); ucbprint(msg, 64); printf("\n");
@@ -83,6 +84,7 @@ int main(int argc, char *argv[]){
 			for(size_t i=0;i<64;i++){
 				assert(((unsigned char )aptr[i]) == msg[i]);
 			}
+			free(aptr);
 
 			gc.ibi->validate(pk, uk, &rc);
 			assert(rc==0);
@@ -93,6 +95,7 @@ int main(int argc, char *argv[]){
 
 			gc.ibi->validate(pk, uk, &rc);
 			assert(rc!=0);
+			gc.ibi->ufree(uk); uk = NULL;
 
 			buf[1] ^= 1; //set it back
 			blen = gc.ibi->uconstr(buf, blen, &uk);
