@@ -27,6 +27,13 @@
 
 #include "core.h"
 
+#define GHIBC_FAIL     -1   // indicate a general failure
+#define GHIBC_NO_ERR   0    // indicate ok
+#define GHIBC_FILE_ERR 0x01 // unable to open file for reading
+#define GHIBC_BUFF_ERR 0x02 // buffer error (memory/overflow)
+#define GHIBC_SOCK_ERR 0x04 // socket creation/configuration error
+#define GHIBC_CONN_ERR 0x08 // connection cannot be established
+
 struct __ghibli_file {
 	int (*setup)(char *, char *, int);
 	int (*issue)(char *, char *, char *);

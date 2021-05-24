@@ -6,8 +6,13 @@ libghibli_la_SOURCES =	utils/bufhelp.c utils/simplesock.c utils/futil.c utils/jb
 			impl/crypto.c impl/ibi.c impl/ds.c \
 			impl/schnorr.c impl/heng.c \
 			core.c ghibli.c
-
 libghibli_la_LDFLAGS = -lsodium
+
+# for pluggable authentication modules
+libsecurity_LTLIBRARIES = pam_ghibc.la
+pam_ghibc_la_SOURCES =ghibc_pam.c
+pam_ghibc_la_LIBADD = libghibli.la
+pam_ghibc_la_LDFLAGS = -lsodium -lpam -lpam_misc -module -avoid-version
 
 # header files to be installed; $(includedir) @default /usr/local/include
 include_HEADERS = ghibli.h

@@ -121,7 +121,8 @@ int __ping_verifier_file(char *pkfilename, char *uid, size_t uidlen, char *sp, s
 
 	FILE *pkfile = fopen(pkfilename, "r");
 	if(pkfile == NULL){
-		lerror("Unable to open file %s for reading.\n", pkfilename); return -1;
+		//lerror("Unable to open file %s for reading.\n", pkfilename);
+		return GHIBC_FILE_ERR;
 	}
 
 	ghibc_init();
@@ -133,17 +134,18 @@ int __ping_verifier_file(char *pkfilename, char *uid, size_t uidlen, char *sp, s
 	an = gc.ibi->karead(pk);
 
 	if( gc.ibi->cmtlen(an) > 320 || gc.ibi->reslen(an) > 320 ){
-		lerror("Insufficient recvbuffer size.\n");
-		return -1;
+		//lerror("Insufficient recvbuffer size.\n");
+		return GHIBC_BUFF_ERR;
 	}else if( gc.ibi->chalen(an) > 64 ){
-		lerror("Insufficient sendbuffer size.\n");
-		return -1;
+		//lerror("Insufficient sendbuffer size.\n");
+		return GHIBC_BUFF_ERR;
 	}
 
 	//create socket
 	sd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if(sd < 0){
-		perror("socket");
+		//perror("socket");
+		return GHIBC_SOCK_ERR;
 		return -1;
 	}
 
@@ -153,12 +155,12 @@ int __ping_verifier_file(char *pkfilename, char *uid, size_t uidlen, char *sp, s
 	memcpy(addr.sun_path, sp, splen); //set socket path
 
 	// connect
-	debug("Establishing connection to auth socket: %s\n", sp);
+	//debug("Establishing connection to auth socket: %s\n", sp);
 	rc = connect(sd, (struct sockaddr *)&addr, sizeof(addr));
 	if (rc < 0){
-		perror("connect");
+		//perror("connect");
 		close(sd);
-		return -1;
+		return GHIBC_CONN_ERR;
 	}
 
 	gc.ibi->verinit(pk, (unsigned char *)uid, uidlen, &pst);
@@ -171,8 +173,13 @@ int __ping_verifier_file(char *pkfilename, char *uid, size_t uidlen, char *sp, s
 	rc = recv(sd, rbuf, gc.ibi->reslen(an), 0);
 	gc.ibi->protdc(rbuf, pst, &rc);
 	close(sd);
-	debug("PingV ok. res: %d\n",rc);
-	return rc;
+	gc.ibi->kfree(pk);
+	//debug("PingV ok. res: %d\n",rc);
+	if(rc == 0){
+		return GHIBC_NO_ERR;
+	}else{
+		return GHIBC_FAIL;
+	}
 }
 
 int __prover_unix_agent_file(char *ukfilename){
@@ -250,6 +257,8 @@ int __prover_unix_agent_file(char *ukfilename){
 		assert( rc == gc.ibi->reslen(an));
 		close(cd);
 	}
+	//won't reach, but cleanup code for further use
+	gc.ibi->ufree(uk);
 }
 
 const struct __ghibli_file ghibfile = {

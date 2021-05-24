@@ -12,6 +12,24 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* Define to 1 if you have the `pam' library (-lpam). */
+#undef HAVE_LIBPAM
+
+/* Define to 1 if you have the `secure_getenv' function. */
+#undef HAVE_SECURE_GETENV
+
+/* Define to 1 if you have the <security/pam_appl.h> header file. */
+#undef HAVE_SECURITY_PAM_APPL_H
+
+/* Define to 1 if you have the <security/pam_modules.h> header file. */
+#undef HAVE_SECURITY_PAM_MODULES_H
+
+/* Define to 1 if you have the <security/pam_modutil.h> header file. */
+#undef HAVE_SECURITY_PAM_MODUTIL_H
+
+/* Define to 1 if you have the <security/_pam_macros.h> header file. */
+#undef HAVE_SECURITY__PAM_MACROS_H
+
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 

@@ -1,0 +1,5 @@
+#%PAM-1.0
+# an example configuration
+#
+auth        required        pam_ghibc.so /home/cjason/prodev/libghibli/testing/sk.pub
+account     required        pam_unix.so
