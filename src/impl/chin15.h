@@ -20,17 +20,29 @@
  * SOFTWARE.
  */
 
-#ifndef __CRYPTO_H__
-#define __CRYPTO_H__
+#ifndef __CHIN15_H__
+#define __CHIN15_H__
 
-#include <sodium/crypto_core_ristretto255.h>
-#define RRE crypto_core_ristretto255_BYTES
-#define RRS crypto_core_ristretto255_SCALARBYTES
-#define RRH crypto_core_ristretto255_HASHBYTES
+#define CHIN15_PKLEN (2*RRE)
+#define CHIN15_SKLEN (2*RRS+CHIN15_PKLEN)
+#define CHIN15_SGLEN (3*RRS+2*RRE)
 
-//cryptographic backend initialization functions
-int __sodium_init();
-// sodium based hash functions
-void __sodium_2rinhashexec(const uint8_t *, size_t, uint8_t *, uint8_t *, uint8_t *);
+struct __chin15_pk {
+	unsigned char *A;
+	unsigned char *B2; //second base
+};
 
+struct __chin15_sk {
+	struct __chin15_pk *pub;
+	unsigned char *a1;
+	unsigned char *a2;
+};
+
+struct __chin15_sg {
+	unsigned char *s1;
+	unsigned char *s2;
+	unsigned char *x;
+	unsigned char *U; //precomputation
+	unsigned char *B2; //second base
+};
 #endif

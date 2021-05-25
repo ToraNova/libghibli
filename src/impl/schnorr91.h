@@ -20,32 +20,25 @@
  * SOFTWARE.
  */
 
-#ifndef __SCHNORR_H__
-#define __SCHNORR_H__
+#ifndef __SCHNORR91_H__
+#define __SCHNORR91_H__
 
-#define SCHNORR_PKLEN RRE
-#define SCHNORR_SKLEN RRS+SCHNORR_PKLEN
-#define SCHNORR_SGLEN (2*RRS+RRE)
+#define SCHNORR91_PKLEN RRE
+#define SCHNORR91_SKLEN RRS+SCHNORR91_PKLEN
+#define SCHNORR91_SGLEN (2*RRS+RRE)
 
-struct __schnorr_pk {
+struct __schnorr91_pk {
 	unsigned char *A;
 };
 
-struct __schnorr_sk {
-	struct __schnorr_pk *pub;
+struct __schnorr91_sk {
+	struct __schnorr91_pk *pub;
 	unsigned char *a;
 };
 
-struct __schnorr_sg {
+struct __schnorr91_sg {
 	unsigned char *s;
 	unsigned char *x;
 	unsigned char *U; //precomputation
 };
-
-void __schnorr_hashexec(
-	const uint8_t *mbuf, size_t mlen,
-	uint8_t *ubuf,
-	uint8_t *vbuf,
-	uint8_t *oarr
-);
 #endif

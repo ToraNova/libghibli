@@ -27,14 +27,14 @@
 #include "../utils/debug.h"
 #include "__crypto.h"
 #include "ibi.h"
-#include "schnorr.h"
+#include "schnorr91.h"
 
-#define HENG_CMTLEN (2*RRE)
-#define HENG_CHALEN RRS
-#define HENG_RESLEN RRS
+#define HENG04_CMTLEN (2*RRE)
+#define HENG04_CHALEN RRS
+#define HENG04_RESLEN RRS
 
 //prover and verifier protocol states
-struct __schibi_prvst {
+struct __heng04_prvst {
 	uint8_t *s;
 	uint8_t *U; //precomputation
 	uint8_t *nonce;
@@ -42,17 +42,17 @@ struct __schibi_prvst {
 	size_t mlen;
 };
 
-struct __schibi_verst {
+struct __heng04_verst {
 	uint8_t *A;
-	uint8_t *c;
+	uint8_t *c; //challenge
 	uint8_t *U; //precompute
-	uint8_t *V; //nonceB
+	uint8_t *NE; //commit nonce group element
 	uint8_t *mbuf;
 	size_t mlen;
 };
 
-void __schibi_prvstfree(void *state){
-	struct __schibi_prvst *tmp = (struct __schibi_prvst *)state; //parse state
+void __heng04_prvstfree(void *state){
+	struct __heng04_prvst *tmp = (struct __heng04_prvst *)state; //parse state
 	sodium_free(tmp->s);
 	sodium_free(tmp->nonce);
 	memset(tmp->U, 0, RRE);//clear and free
@@ -61,20 +61,20 @@ void __schibi_prvstfree(void *state){
 	free(tmp);
 }
 
-void __schibi_verstfree(void *state){
-	struct __schibi_verst *tmp = (struct __schibi_verst *)state; //parse state
+void __heng04_verstfree(void *state){
+	struct __heng04_verst *tmp = (struct __heng04_verst *)state; //parse state
 	free(tmp->A);
 	free(tmp->c);
 	free(tmp->U);
-	free(tmp->V);
+	free(tmp->NE);
 	free(tmp->mbuf);
 	free(tmp);
 }
 
-void __schibi_prvinit(void *vusk, const uint8_t *mbuf, size_t mlen, void **state){
-	struct __schnorr_sg *usk = (struct __schnorr_sg *)vusk;
-	struct __schibi_prvst *tmp;
-	tmp = (struct __schibi_prvst *)malloc(sizeof(struct __schibi_prvst));
+void __heng04_prvinit(void *vusk, const uint8_t *mbuf, size_t mlen, void **state){
+	struct __schnorr91_sg *usk = (struct __schnorr91_sg *)vusk;
+	struct __heng04_prvst *tmp;
+	tmp = (struct __heng04_prvst *)malloc(sizeof(struct __heng04_prvst));
 
 	//allocate and copy for mbuf
 	tmp->mbuf = (uint8_t *)malloc(mlen);
@@ -91,8 +91,8 @@ void __schibi_prvinit(void *vusk, const uint8_t *mbuf, size_t mlen, void **state
 }
 
 //mbuf and mlen unused in this case, but generally it could be used
-void __schibi_cmtgen(void **state, uint8_t *cmt){
-	struct __schibi_prvst *tmp = (struct __schibi_prvst *)(*state); //parse state
+void __heng04_cmtgen(void **state, uint8_t *cmt){
+	struct __heng04_prvst *tmp = (struct __heng04_prvst *)(*state); //parse state
 
 	uint8_t tbuf[RRE]; int rc;
 	tmp->nonce = (uint8_t *)sodium_malloc(RRS); //allocate nonce
@@ -100,29 +100,29 @@ void __schibi_cmtgen(void **state, uint8_t *cmt){
 	crypto_core_ristretto255_scalar_random(tmp->nonce); //sample nonce and compute cmt
 	rc = crypto_scalarmult_ristretto255_base(tbuf , tmp->nonce);
 	//create commit message
-	//*cmt = (uint8_t *)malloc(HENG_CMTLEN); // leave it up to user to allocate
+	//*cmt = (uint8_t *)malloc(HENG04_CMTLEN); // leave it up to user to allocate
 	//commit = U, V = vB where v is nonce
 	copyskip( cmt, tmp->U, 	0, 	RRE);
 	copyskip( cmt, tbuf, 		RRE, 	RRE);
 	*state = (void *)tmp; //recast and return
 }
 
-void __schibi_resgen(const uint8_t *cha, void *state, uint8_t *res){
-	struct __schibi_prvst *tmp = (struct __schibi_prvst *)state; //parse state
+void __heng04_resgen(const uint8_t *cha, void *state, uint8_t *res){
+	struct __heng04_prvst *tmp = (struct __heng04_prvst *)state; //parse state
 	//allocate mem for response
-	//*res = (uint8_t *)malloc(HENG_RESLEN); //leave it up to user to allocate
+	//*res = (uint8_t *)malloc(HENG04_RESLEN); //leave it up to user to allocate
 
 	//compute response : y=t+cs where t is nonce
 	crypto_core_ristretto255_scalar_mul( res, cha, tmp->s ); //
 	crypto_core_ristretto255_scalar_add( res, res, tmp->nonce );
-	__schibi_prvstfree(state); //critical, PLEASE FREE BEFORE RETURNING
+	__heng04_prvstfree(state); //critical, PLEASE FREE BEFORE RETURNING
 }
 
-void __schibi_verinit(void *vpar, const uint8_t *mbuf, size_t mlen, void **state){
-	struct __schnorr_pk *par = (struct __schnorr_pk *)vpar; //parse mpk
-	struct __schibi_verst *tmp;
+void __heng04_verinit(void *vpar, const uint8_t *mbuf, size_t mlen, void **state){
+	struct __schnorr91_pk *par = (struct __schnorr91_pk *)vpar; //parse mpk
+	struct __heng04_verst *tmp;
 	//allocate
-	tmp = (struct __schibi_verst *)malloc(sizeof(struct __schibi_verst));
+	tmp = (struct __heng04_verst *)malloc(sizeof(struct __heng04_verst));
 
 	//copy mbuf
 	tmp->mbuf = (uint8_t *)malloc(mlen);
@@ -137,20 +137,20 @@ void __schibi_verinit(void *vpar, const uint8_t *mbuf, size_t mlen, void **state
 }
 
 //vpar unused, but generally it MAY be used
-void __schibi_chagen(const uint8_t *cmt, void **state, uint8_t *cha){
-	struct __schibi_verst *tmp = (struct __schibi_verst *)(*state); //parse state
+void __heng04_chagen(const uint8_t *cmt, void **state, uint8_t *cha){
+	struct __heng04_verst *tmp = (struct __heng04_verst *)(*state); //parse state
 
 	tmp->U = (uint8_t *)malloc(RRE);
-	tmp->V = (uint8_t *)malloc(RRE);
+	tmp->NE = (uint8_t *)malloc(RRE);
 
 	//parse commit
 	skipcopy( tmp->U, cmt, 0, 	RRE);
-	skipcopy( tmp->V, cmt, RRE, 	RRE);
+	skipcopy( tmp->NE, cmt, RRE, 	RRE);
 
 	//generate challenge
 	//commit = U', V = vB where v is nonce
 	tmp->c = (uint8_t *)malloc(RRS);
-	//*cha = (uint8_t *)malloc(HENG_CHALEN); //leave it up to user to allocate
+	//*cha = (uint8_t *)malloc(HENG04_CHALEN); //leave it up to user to allocate
 	crypto_core_ristretto255_scalar_random(tmp->c);
 	memcpy(cha, tmp->c, RRS);
 
@@ -158,32 +158,32 @@ void __schibi_chagen(const uint8_t *cmt, void **state, uint8_t *cha){
 }
 
 //main decision function for protocol
-void __schibi_protdc(const uint8_t *res, void *state, int *dec){
-	struct __schibi_verst *tmp = (struct __schibi_verst *)(state); //parse state
+void __heng04_protdc(const uint8_t *res, void *state, int *dec){
+	struct __heng04_verst *tmp = (struct __heng04_verst *)(state); //parse state
 
 	uint8_t rhs[RRE]; uint8_t lhs[RRE]; uint8_t tbuf[RRS];
-	__schnorr_hashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->A, tbuf);
+	__sodium_2rinhashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->A, tbuf);
 
 	// yB = T + c( U' - xP1 )
 	*dec = crypto_scalarmult_ristretto255_base(lhs, res); // yB
 	*dec += crypto_scalarmult_ristretto255( rhs, tbuf, tmp->A); // xA
 	*dec += crypto_core_ristretto255_sub( rhs, tmp->U, rhs); // U' - xA
 	*dec += crypto_scalarmult_ristretto255( rhs, tmp->c, rhs); // c( U' - xA )
-	*dec += crypto_core_ristretto255_add(rhs, tmp->V, rhs);// T + c(U' - xA)
+	*dec += crypto_core_ristretto255_add(rhs, tmp->NE, rhs);// T + c(U' - xA)
 
-	__schibi_verstfree(state);
+	__heng04_verstfree(state);
 	*dec += crypto_verify_32(lhs, rhs);
 }
 
-const struct __ibi heng = {
-	.ds = (ds_t *)&schnorr,
-	.prvinit = __schibi_prvinit, //proto
-	.cmtgen = __schibi_cmtgen,
-	.resgen = __schibi_resgen,
-	.verinit = __schibi_verinit,
-	.chagen = __schibi_chagen,
-	.protdc = __schibi_protdc,
-	.cmtlen = HENG_CMTLEN,
-	.chalen = HENG_CHALEN,
-	.reslen = HENG_RESLEN,
+const ibi_t heng04 = {
+	.ds = (ds_t *)&schnorr91,
+	.prvinit = __heng04_prvinit, //proto
+	.cmtgen = __heng04_cmtgen,
+	.resgen = __heng04_resgen,
+	.verinit = __heng04_verinit,
+	.chagen = __heng04_chagen,
+	.protdc = __heng04_protdc,
+	.cmtlen = HENG04_CMTLEN,
+	.chalen = HENG04_CHALEN,
+	.reslen = HENG04_RESLEN,
 };

@@ -114,7 +114,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
 	ghibc_init();
 
-	rc = ghibfile.pingver(pkfname, user, strlen(user), asock, strlen(asock));
+	rc = ghibfile.pingver(pkfname, user, strlen(user), asock, strlen(asock), 0);
 	switch(rc){
 		case GHIBC_NO_ERR:
 			//all ok

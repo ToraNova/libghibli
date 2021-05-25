@@ -45,6 +45,7 @@ static struct argp_option options[] = {
 	{ "identity", 'i', "IDENTITY", 0, "Issue user-key bound  to IDENTITY."},
 	{ "algo", 'a', "ALGO", 0, "Use ALGO (keygen only)."},
 	{ "agentsock", 'q', "PATH", 0, "Location (PATH) of auth agent socket (ping-verify)"},
+	{ "verbose", 'v' ,0 ,0 , "Enable verbose messages."},
 	{ 0 }
 };
 
@@ -56,6 +57,7 @@ struct arguments {
 	char *mpkfile; //master public key filename
 	char *uident; //user identity
 	char *agsock;
+	int flags;
 };
 
 static error_t parse_opt(int key, char *arg, struct argp_state *state) {
@@ -72,6 +74,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		arguments->mpkfile = arg; break;
 	case 'q':
 		arguments->agsock = arg; break;
+	case 'v':
+		arguments->flags |= GHIBC_FLAG_VERBOSE; break; //enable verbose message
 	case 'a':
 		arguments->algo = strtol( arg, &end, 10); //parse to base10
 		if( errno == ERANGE ){
@@ -92,13 +96,13 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		} else if (strcmp(arg, "pingv") == 0) {
 			arguments->mode = PINGVER;
 		} else {
-			lerror("Invalid mode: %s. modes: keygen, issue, validate, agent\n", arg);
+			lerror("Invalid mode: %s. modes: keygen, issue, validate, agent, pingv\n", arg);
 			argp_usage(state);
 		}
 		break;
 	case ARGP_KEY_END:
 		if( state->arg_num < 1 ){
-			lerror("No mode specified. Modes: keygen, issue, validate, agent\n", arg);
+			lerror("No mode specified. Modes: keygen, issue, validate, agent, pingv\n", arg);
 			argp_usage(state);
 
 		}
@@ -118,11 +122,11 @@ int main(int argc, char *argv[], char *envp[]){
 	arguments.uident = NULL;
 	arguments.mpkfile = NULL;
 	arguments.agsock = NULL;
+	arguments.flags = 0;
 	argp_parse(&argp, argc, argv, 0, 0, &arguments);
 
-	FILE *f1, f2; int rc;
-	size_t len;
-	char tcb[128];
+	int rc;
+	char tcb[128]; size_t len;
 
 	switch(arguments.mode){
 		case MSKGEN:
@@ -131,7 +135,7 @@ int main(int argc, char *argv[], char *envp[]){
 				return -1;
 			}
 			snprintf(tcb, 128, "%s.pub", arguments.mskfile);
-			ghibfile.setup(arguments.mskfile, tcb, arguments.algo);
+			rc = ghibfile.setup(arguments.mskfile, tcb, arguments.algo, arguments.flags);
 			printf("Master key generated to files %s and %s\n",arguments.mskfile, tcb);
 			break;
 		case USKGEN:
@@ -139,7 +143,7 @@ int main(int argc, char *argv[], char *envp[]){
 				lerror("Unspecified msk(-s)/usk(-u)/identity(-i) file in issue mode.\n");
 				return -1;
 			}
-			ghibfile.issue(arguments.mskfile, arguments.uskfile, arguments.uident);
+			rc = ghibfile.issue(arguments.mskfile, arguments.uskfile, arguments.uident, arguments.flags);
 			printf("User key (%s) generated to file %s.\n", arguments.uident, arguments.uskfile);
 			break;
 		case USKVRF:
@@ -147,9 +151,12 @@ int main(int argc, char *argv[], char *envp[]){
 				lerror("Unspecified mpk(-p)/usk(-u) file in validate mode.\n");
 				return -1;
 			}
-			rc = ghibfile.keycheck(arguments.mpkfile, arguments.uskfile, &arguments.uident, &len);
+			rc = ghibfile.keycheck(arguments.mpkfile, arguments.uskfile, &arguments.uident, &len, arguments.flags);
 			if(rc == 0){
 				printf("User key (%s) on file %s is valid.\n", arguments.uident, arguments.uskfile);
+			}
+			if(rc == GHIBC_FAIL || rc == GHIBC_NO_ERR){
+				free(arguments.uident);
 			}
 			break;
 		case AGENT:
@@ -157,7 +164,7 @@ int main(int argc, char *argv[], char *envp[]){
 				lerror("Unspecified usk(-u) file in agent mode.\n");
 				return -1;
 			}
-			ghibfile.agent(arguments.uskfile);
+			ghibfile.agent(arguments.uskfile, arguments.flags);
 			// won't reach here
 			break;
 		case PINGVER:
@@ -165,7 +172,7 @@ int main(int argc, char *argv[], char *envp[]){
 				lerror("Unspecified mpk(-p)/identity(-i)/agentsock(-q) in ping-verify(pingv) mode.\n");
 				return -1;
 			}
-			rc = ghibfile.pingver(arguments.mpkfile, arguments.uident, strlen(arguments.uident), arguments.agsock, strlen(arguments.agsock));
+			rc = ghibfile.pingver(arguments.mpkfile, arguments.uident, strlen(arguments.uident), arguments.agsock, strlen(arguments.agsock), arguments.flags);
 			if(rc == 0){
 				printf("Ping verify succeed for id: %s on agent socket:%s\n", arguments.uident, arguments.agsock);
 			}else{

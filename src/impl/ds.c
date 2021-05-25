@@ -29,9 +29,12 @@
 ds_t *get_ds_impl(uint8_t an){
 	switch(an){
 		case 0:
-			return (ds_t *)&schnorr;
+			return (ds_t *)&schnorr91;
+		case 1:
+			return (ds_t *)&__chin15;
 		default:
-			return (ds_t *)&schnorr;
+			assert(0); //error
+			return (ds_t *)&schnorr91;
 	}
 }
 
@@ -108,9 +111,10 @@ uint8_t __ds_raread(void *in){
 	return tmp->an;
 }
 
-size_t __ds_kserial(void *in, uint8_t *out){
+size_t __ds_kserial(void *in, uint8_t *out, size_t mblen){
 	ds_k_t *tmp = (ds_k_t *)in;
 	ds_t *impl = get_ds_impl(tmp->an); //get algorithm
+	assert( mblen >= __ds_sglen(tmp->an) ); //ensure enough buffer space
 	out[0] = tmp->an;
 	out[1] = tmp->t;
 	size_t rs = 2;
@@ -122,9 +126,10 @@ size_t __ds_kserial(void *in, uint8_t *out){
 	return rs;
 }
 
-size_t __ds_rserial(void *in, uint8_t *out){
+size_t __ds_rserial(void *in, uint8_t *out, size_t mblen){
 	ds_s_t *tmp = (ds_s_t *)in;
 	ds_t *impl = get_ds_impl(tmp->an); //get algorithm
+	assert( mblen >= __ds_sglen(tmp->an) ); //ensure enough buffer space
 	out[0] = tmp->an;
 	size_t rs = 1;
 	rs += impl->sgserial(tmp->s, out+rs);

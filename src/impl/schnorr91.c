@@ -27,25 +27,25 @@
 #include "../utils/debug.h"
 #include "__crypto.h"
 #include "ds.h"
-#include "schnorr.h"
+#include "schnorr91.h"
 
 // memory allocation
-struct __schnorr_pk *__schnorr_pkinit(void){
-	struct __schnorr_pk *out;
-	out = (struct __schnorr_pk *)malloc( sizeof(struct __schnorr_pk) );
+struct __schnorr91_pk *__schnorr91_pkinit(void){
+	struct __schnorr91_pk *out;
+	out = (struct __schnorr91_pk *)malloc( sizeof(struct __schnorr91_pk) );
 	out->A = (uint8_t *)malloc( RRE );
 	return out;
 }
-struct __schnorr_sk *__schnorr_skinit(void){
-	struct __schnorr_sk *out;
-	out = (struct __schnorr_sk *)sodium_malloc( sizeof(struct __schnorr_sk) );
+struct __schnorr91_sk *__schnorr91_skinit(void){
+	struct __schnorr91_sk *out;
+	out = (struct __schnorr91_sk *)malloc( sizeof(struct __schnorr91_sk) );
 	out->a = (uint8_t *)sodium_malloc( RRS );
-	out->pub = __schnorr_pkinit();
+	out->pub = __schnorr91_pkinit();
 	return out;
 }
-struct __schnorr_sg *__schnorr_sginit(void){
-	struct __schnorr_sg *out;
-	out = (struct __schnorr_sg *)sodium_malloc( sizeof( struct __schnorr_sg) );
+struct __schnorr91_sg *__schnorr91_sginit(void){
+	struct __schnorr91_sg *out;
+	out = (struct __schnorr91_sg *)malloc( sizeof( struct __schnorr91_sg) );
 	out->s = (uint8_t *)sodium_malloc( RRS );
 	out->x = (uint8_t *)sodium_malloc( RRS );
 	out->U = (uint8_t *)sodium_malloc( RRE );
@@ -53,27 +53,27 @@ struct __schnorr_sg *__schnorr_sginit(void){
 }
 
 //memory free
-void __schnorr_pkfree(void *in){
+void __schnorr91_pkfree(void *in){
 	//key recast
-	struct __schnorr_pk *ri = (struct __schnorr_pk *)in;
+	struct __schnorr91_pk *ri = (struct __schnorr91_pk *)in;
 	//free up memory
 	free(ri->A);
 	free(ri);
 }
-void __schnorr_skfree(void *in){
+void __schnorr91_skfree(void *in){
 	//key recast
-	struct __schnorr_sk *ri = (struct __schnorr_sk *)in;
+	struct __schnorr91_sk *ri = (struct __schnorr91_sk *)in;
 	//zero out the secret component
-	sodium_memzero(ri->a, RRS);
+	//sodium_memzero(ri->a, RRS); //sodium_free already does this
 
 	//free memory
 	sodium_free(ri->a);
-	__schnorr_pkfree(ri->pub);
-	sodium_free(ri);
+	__schnorr91_pkfree(ri->pub);
+	free(ri);
 }
-void __schnorr_sgfree(void *in){
+void __schnorr91_sgfree(void *in){
 	//key recast
-	struct __schnorr_sg *ri = (struct __schnorr_sg *)in;
+	struct __schnorr91_sg *ri = (struct __schnorr91_sg *)in;
 	//clear the components
 	//sodium_memzero(ri->s, RRS);
 	//sodium_memzero(ri->x, RRS);
@@ -83,68 +83,47 @@ void __schnorr_sgfree(void *in){
 	sodium_free(ri->x);
 	//free(ri->x);
 	sodium_free(ri->U);
-	sodium_free(ri);
+	free(ri);
 }
 
-void __schnorr_skgen(void **out){
+void __schnorr91_skgen(void **out){
 	int rc;
 	//declare and allocate memory for key
-	struct __schnorr_sk *tmp = __schnorr_skinit();
+	struct __schnorr91_sk *tmp = __schnorr91_skinit();
 	uint8_t neg[RRS];
 
 	//sample secret a
 	crypto_core_ristretto255_scalar_random( tmp->a );
 
 	crypto_core_ristretto255_scalar_negate(neg , tmp->a);
-	rc = crypto_scalarmult_ristretto255_base(
-			tmp->pub->A,
-			neg
-			); // A = aB
+	rc = crypto_scalarmult_ristretto255_base(tmp->pub->A, neg); // A = -aB
+
+	memset(neg, 0, RRS); // zero memory
 	assert(rc == 0);
 
 	//recast and return
 	*out = (void *) tmp;
 }
 
-void __schnorr_pkext(void *vkey, void **out){
+void __schnorr91_pkext(void *vkey, void **out){
 	//key recast
-	struct __schnorr_sk *key = ((struct __schnorr_sk *)vkey);
+	struct __schnorr91_sk *key = ((struct __schnorr91_sk *)vkey);
 	//allocate for pk
-	struct __schnorr_pk *tmp = __schnorr_pkinit();
-	copyskip(tmp->A, key->pub->A, 0, RRE);
+	struct __schnorr91_pk *tmp = __schnorr91_pkinit();
+	memcpy(tmp->A, key->pub->A, RRE);
 	*out = (void *)tmp;
 }
 
-//assumes arr is alloc with RRS
-void __schnorr_hashexec(
-	const uint8_t *mbuf, size_t mlen,
-	uint8_t *ubuf,
-	uint8_t *vbuf,
-	uint8_t *oarr
-){
-	crypto_hash_sha512_state state;
-	uint8_t tbuf[RRH]; //hash
-	//compute hash
-	crypto_hash_sha512_init( &state );
-	crypto_hash_sha512_update( &state, mbuf, mlen);
-	crypto_hash_sha512_update( &state, ubuf, RRE);
-	crypto_hash_sha512_update( &state, vbuf, RRE);
-	crypto_hash_sha512_final( &state, tbuf);
-	crypto_core_ristretto255_scalar_reduce(
-		oarr, (const uint8_t *)tbuf
-	);
-}
-
-void __schnorr_siggen(
+void __schnorr91_siggen(
 	void *vkey,
 	const uint8_t *mbuf, size_t mlen,
 	void **out
 ){
 	int rc;
  	//key recast
-	struct __schnorr_sk *key = (struct __schnorr_sk *)vkey;
+	struct __schnorr91_sk *key = (struct __schnorr91_sk *)vkey;
 	//declare and allocate for signature struct
-	struct __schnorr_sg *tmp = __schnorr_sginit();
+	struct __schnorr91_sg *tmp = __schnorr91_sginit();
 
 	//--------------------------TODO START
 	//nonce, r and hash
@@ -159,17 +138,18 @@ void __schnorr_siggen(
 			); // U = rB
 	assert(rc == 0);
 
-	__schnorr_hashexec(mbuf, mlen, tmp->U, key->pub->A, tmp->x);
+	__sodium_2rinhashexec(mbuf, mlen, tmp->U, key->pub->A, tmp->x);
 
 	// s = r + xa
 	crypto_core_ristretto255_scalar_mul( tmp->s , tmp->x, key->a );
 	crypto_core_ristretto255_scalar_add( tmp->s, tmp->s, nonce );
+	memset(nonce, 0, RRS);
 	//--------------------------TODO END
 
 	*out = (void *) tmp;
 }
 
-void __schnorr_sigvrf(
+void __schnorr91_sigvrf(
 	void *vpar,
 	void *vsig,
 	const uint8_t *mbuf, size_t mlen,
@@ -177,19 +157,19 @@ void __schnorr_sigvrf(
 ){
 	//key recast
 	uint8_t xp[RRS];
-	struct __schnorr_pk *par = (struct __schnorr_pk *)vpar;
-	struct __schnorr_sg *sig = (struct __schnorr_sg *)vsig;
+	struct __schnorr91_pk *par = (struct __schnorr91_pk *)vpar;
+	struct __schnorr91_sg *sig = (struct __schnorr91_sg *)vsig;
 
 	//--------------------------TODO START
 	uint8_t tmp1[RRE]; //tmp array
 	uint8_t tmp2[RRE]; //tmp array
 
-	// U' = sB - A
+	// U' = sB - xA
 	*res = crypto_scalarmult_ristretto255_base( tmp1, sig->s);
 	*res += crypto_scalarmult_ristretto255( tmp2, sig->x, par->A);
-	*res += crypto_core_ristretto255_add( tmp1, tmp1, tmp2 ); //tmp3 U'
+	*res += crypto_core_ristretto255_add( tmp1, tmp1, tmp2 );
 
-	__schnorr_hashexec(mbuf, mlen, tmp1, par->A, xp);
+	__sodium_2rinhashexec(mbuf, mlen, tmp1, par->A, xp);
 
 	//check if hash is equal to x from vsig
 	*res += crypto_verify_32( xp, sig->x );
@@ -197,50 +177,50 @@ void __schnorr_sigvrf(
 }
 
 //debugging use only
-void __schnorr_pkprint(void *in){
-	struct __schnorr_pk *ri = (struct __schnorr_pk *)in;
+void __schnorr91_pkprint(void *in){
+	struct __schnorr91_pk *ri = (struct __schnorr91_pk *)in;
 	printf("A :"); ucbprint(ri->A, RRE); printf("\n");
 }
 
-void __schnorr_skprint(void *in){
-	struct __schnorr_sk *ri = (struct __schnorr_sk *)in;
+void __schnorr91_skprint(void *in){
+	struct __schnorr91_sk *ri = (struct __schnorr91_sk *)in;
 	printf("a :"); ucbprint(ri->a, RRS); printf("\n");
-	__schnorr_pkprint((void *)ri->pub);
+	__schnorr91_pkprint((void *)ri->pub);
 }
 
-void __schnorr_sgprint(void *in){
-	struct __schnorr_sg *ri = (struct __schnorr_sg *)in;
+void __schnorr91_sgprint(void *in){
+	struct __schnorr91_sg *ri = (struct __schnorr91_sg *)in;
 	printf("s :"); ucbprint(ri->s, RRS); printf("\n");
 	printf("x :"); ucbprint(ri->x, RRS); printf("\n");
 	printf("U :"); ucbprint(ri->U, RRE); printf("\n");
 }
 
-size_t __schnorr_skserial(void *in, uint8_t *out){
+size_t __schnorr91_pkserial(void *in, uint8_t *out){
 	size_t rs;
-	struct __schnorr_sk *ri = (struct __schnorr_sk *)in;//recast the key
+	struct __schnorr91_pk *ri = (struct __schnorr91_pk *)in;//recast the key
 	//set size and allocate
-	//*out = (uint8_t *)malloc( SCHNORR_SKLEN );
+	//*out = (uint8_t *)malloc( SCHNORR91_PKLEN );
+	// A
+	rs = copyskip( out, ri->A, 	0, 	RRE);
+	return rs;
+}
+
+size_t __schnorr91_skserial(void *in, uint8_t *out){
+	size_t rs;
+	struct __schnorr91_sk *ri = (struct __schnorr91_sk *)in;//recast the key
+	//set size and allocate
+	//*out = (uint8_t *)malloc( SCHNORR91_SKLEN );
 	//a, A
 	rs = copyskip( out, ri->a, 		0, 	RRS);
 	rs = copyskip( out, ri->pub->A, 	rs, 	RRE);
 	return rs;
 }
 
-size_t __schnorr_pkserial(void *in, uint8_t *out){
+size_t __schnorr91_sgserial(void *in, uint8_t *out){
 	size_t rs;
-	struct __schnorr_pk *ri = (struct __schnorr_pk *)in;//recast the key
+	struct __schnorr91_sg *ri = (struct __schnorr91_sg *)in;//recast the obj
 	//set size and allocate
-	//*out = (uint8_t *)malloc( SCHNORR_PKLEN );
-	// A
-	rs = copyskip( out, ri->A, 	0, 	RRE);
-	return rs;
-}
-
-size_t __schnorr_sgserial(void *in, uint8_t *out){
-	size_t rs;
-	struct __schnorr_sg *ri = (struct __schnorr_sg *)in;//recast the obj
-	//set size and allocate
-	//*out = (uint8_t *)malloc( SCHNORR_SGLEN );
+	//*out = (uint8_t *)malloc( SCHNORR91_SGLEN );
 	//s, x, U
 	rs = copyskip( out, ri->s, 	0, 	RRS);
 	rs = copyskip( out, ri->x, 	rs, 	RRS);
@@ -248,11 +228,22 @@ size_t __schnorr_sgserial(void *in, uint8_t *out){
 	return rs;
 }
 
-size_t __schnorr_skconstr(const uint8_t *in, void **out){
+size_t __schnorr91_pkconstr(const uint8_t *in, void **out){
 	size_t rs;
-	struct __schnorr_sk *tmp;
+	struct __schnorr91_pk *tmp;
 	//allocate memory for seckey
-	tmp = __schnorr_skinit();
+	tmp = __schnorr91_pkinit();
+	// A
+	rs = skipcopy( tmp->A,		in, 0, 	RRE);
+	*out = (void *) tmp;
+	return rs;
+}
+
+size_t __schnorr91_skconstr(const uint8_t *in, void **out){
+	size_t rs;
+	struct __schnorr91_sk *tmp;
+	//allocate memory for seckey
+	tmp = __schnorr91_skinit();
 	// a, A
 	rs = skipcopy( tmp->a,		in, 0, 	RRS);
 	rs = skipcopy( tmp->pub->A,	in, rs, RRE);
@@ -260,22 +251,11 @@ size_t __schnorr_skconstr(const uint8_t *in, void **out){
 	return rs;
 }
 
-size_t __schnorr_pkconstr(const uint8_t *in, void **out){
+size_t __schnorr91_sgconstr(const uint8_t *in, void **out){
 	size_t rs;
-	struct __schnorr_pk *tmp;
+	struct __schnorr91_sg *tmp;
 	//allocate memory for seckey
-	tmp = __schnorr_pkinit();
-	// A
-	rs = skipcopy( tmp->A,		in, 0, 	RRE);
-	*out = (void *) tmp;
-	return rs;
-}
-
-size_t __schnorr_sgconstr(const uint8_t *in, void **out){
-	size_t rs;
-	struct __schnorr_sg *tmp;
-	//allocate memory for seckey
-	tmp = __schnorr_sginit();
+	tmp = __schnorr91_sginit();
 	// s, x, U
 	rs = skipcopy( tmp->s,		in, 0, 	RRS);
 	rs = skipcopy( tmp->x,		in, rs, RRS);
@@ -284,24 +264,24 @@ size_t __schnorr_sgconstr(const uint8_t *in, void **out){
 	return rs;
 }
 
-const ds_t schnorr = {
-	.skgen = __schnorr_skgen,
-	.pkext = __schnorr_pkext,
-	.siggen = __schnorr_siggen,
-	.sigvrf = __schnorr_sigvrf,
-	.skfree = __schnorr_skfree,
-	.pkfree = __schnorr_pkfree,
-	.sgfree = __schnorr_sgfree,
-	.skprint = __schnorr_skprint,
-	.pkprint = __schnorr_pkprint,
-	.sgprint = __schnorr_sgprint,
-	.skserial = __schnorr_skserial,
-	.pkserial = __schnorr_pkserial,
-	.sgserial = __schnorr_sgserial,
-	.skconstr = __schnorr_skconstr,
-	.pkconstr = __schnorr_pkconstr,
-	.sgconstr = __schnorr_sgconstr,
-	.sklen = SCHNORR_SKLEN,
-	.pklen = SCHNORR_PKLEN,
-	.sglen = SCHNORR_SGLEN,
+const ds_t schnorr91 = {
+	.skgen = __schnorr91_skgen,
+	.pkext = __schnorr91_pkext,
+	.siggen = __schnorr91_siggen,
+	.sigvrf = __schnorr91_sigvrf,
+	.skfree = __schnorr91_skfree,
+	.pkfree = __schnorr91_pkfree,
+	.sgfree = __schnorr91_sgfree,
+	.skprint = __schnorr91_skprint,
+	.pkprint = __schnorr91_pkprint,
+	.sgprint = __schnorr91_sgprint,
+	.skserial = __schnorr91_skserial,
+	.pkserial = __schnorr91_pkserial,
+	.sgserial = __schnorr91_sgserial,
+	.skconstr = __schnorr91_skconstr,
+	.pkconstr = __schnorr91_pkconstr,
+	.sgconstr = __schnorr91_sgconstr,
+	.sklen = SCHNORR91_SKLEN,
+	.pklen = SCHNORR91_PKLEN,
+	.sglen = SCHNORR91_SGLEN,
 };

@@ -62,7 +62,8 @@ typedef struct __ds {
 } ds_t;
 
 // ds implemented
-extern const ds_t schnorr;
+extern const ds_t schnorr91;
+extern const ds_t __chin15; //not to be used
 
 // interfaces
 typedef struct __ds_if {
@@ -75,8 +76,8 @@ typedef struct __ds_if {
 	uint8_t (*ktread)(void *); //read the key type
 	uint8_t (*karead)(void *); //read the key algo
 	uint8_t (*raread)(void *); //read the sign algo
-	size_t (*kserial)(void *, uint8_t *); //serialize key
-	size_t (*rserial)(void *, uint8_t *); //serialize signature
+	size_t (*kserial)(void *, uint8_t *, size_t); //serialize key
+	size_t (*rserial)(void *, uint8_t *, size_t); //serialize signature
 	size_t (*kconstr)(const uint8_t *, void **); //constrct key from serialization
 	size_t (*rconstr)(const uint8_t *, void **); //construct signature from serialization
 
@@ -103,8 +104,8 @@ void __ds_rfree(void *in);
 uint8_t __ds_ktread(void *in);
 uint8_t __ds_karead(void *in);
 uint8_t __ds_raread(void *in);
-size_t __ds_kserial(void *in, uint8_t *out);
-size_t __ds_rserial(void *in, uint8_t *out);
+size_t __ds_kserial(void *in, uint8_t *out, size_t mblen);
+size_t __ds_rserial(void *in, uint8_t *out, size_t mblen);
 size_t __ds_kconstr(const uint8_t *in, void **out);
 size_t __ds_rconstr(const uint8_t *in, void **out);
 void __ds_sign(void *vkey, const uint8_t *mbuf, size_t mlen, void **out);

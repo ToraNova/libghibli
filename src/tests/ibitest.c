@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#define BL 512
+
 int main(int argc, char *argv[]){
 
 	void *sk;
@@ -19,28 +21,30 @@ int main(int argc, char *argv[]){
 	int rc;
 	unsigned char msg[64];// = "toranova";
 
-	unsigned char cmt[160];
+	unsigned char cmt[200];
 	unsigned char cha[64];
-	unsigned char res[160];
+	unsigned char res[200];
 	void *pst, *vst;
 
-	unsigned char buf[160];
+	unsigned char buf[512];
 	size_t alen, blen;
 	char *aptr;
 	unsigned char *bptr;
 
 	ghibc_init(); //uses whatev backend we use
 
-	for(int i=0;i<1;i++){
+	for(int i=0;i<2;i++){
 		printf("testing ibi-algo %d\n",i);
 		//gc.init(i);
-		for(int j=0;j<100;j++){
+		for(int j=0;j<30;j++){
 			gc.randbytes(msg, 64);
 			//printf("m :"); ucbprint(msg, 64); printf("\n");
 			gc.ibi->setup(i, &sk, &pk);
+			//gc.ibi->kprint(sk);
+			//gc.ibi->kprint(pk);
 
 			// serialize sk
-			blen = gc.ibi->kserial(sk, buf);
+			blen = gc.ibi->kserial(sk, buf, BL);
 			assert(blen == gc.ibi->sklen(i));
 			gc.ibi->kfree(sk); sk = NULL; //free
 
@@ -58,7 +62,7 @@ int main(int argc, char *argv[]){
 			free(bptr);
 
 			// serialize pk
-			blen = gc.ibi->kserial(pk, buf);
+			blen = gc.ibi->kserial(pk, buf, BL);
 			assert(blen == gc.ibi->pklen(i));
 			gc.ibi->kfree(pk); pk = NULL; //free
 
@@ -68,9 +72,11 @@ int main(int argc, char *argv[]){
 			assert(gc.ibi->karead(pk) == i);
 			assert(gc.ibi->ktread(pk) == 1);
 
+			// issue
 			gc.ibi->issue(sk, msg, 64, &uk);
+			gc.ibi->kfree(sk); sk = NULL; //free
 
-			blen = gc.ibi->userial(uk, buf);
+			blen = gc.ibi->userial(uk, buf, BL);
 			assert(blen == gc.ibi->ukbslen(i) + 64);
 			gc.ibi->ufree(uk); uk = NULL;
 
@@ -117,7 +123,6 @@ int main(int argc, char *argv[]){
 			//printf("prot : %d\n",rc);
 			assert(rc==0);
 
-			gc.ibi->kfree(sk);
 			gc.ibi->kfree(pk);
 			gc.ibi->ufree(uk);
 		}
@@ -125,4 +130,3 @@ int main(int argc, char *argv[]){
 
 	printf("all ok\n");
 }
-

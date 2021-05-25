@@ -30,9 +30,12 @@
 ibi_t *get_ibi_impl(uint8_t an){
 	switch(an){
 		case 0:
-			return (ibi_t *) &heng;
+			return (ibi_t *) &heng04;
+		case 1:
+			return (ibi_t *) &chin15;
 		default:
-			return (ibi_t *) &heng;
+			assert(0); //error
+			return (ibi_t *) &heng04;
 	}
 }
 
@@ -46,7 +49,7 @@ ibi_u_t *__ibi_uinit(uint8_t an, size_t mlen){
 
 void __ibi_ufree(void *in){
 	ibi_u_t *ri = (ibi_u_t *)in;
-	ds_t *impl = get_ds_impl(ri->an);
+	ds_t *impl = get_ibi_impl(ri->an)->ds;
 	impl->sgfree(ri->k);
 	free(ri->m);
 	free(ri);
@@ -67,7 +70,7 @@ void __ibi_uiread(void *in, uint8_t **out, size_t *len){
 
 // base length of a user key (not including length of signature
 size_t __ibi_ukbslen(uint8_t an){
-	ds_t *impl = get_ds_impl(an);
+	ds_t *impl = get_ibi_impl(an)->ds;
 	return (impl->sglen + 1);
 }
 
@@ -80,7 +83,7 @@ void __ibi_ukgen(
 	// init key
 	ibi_u_t *uk = __ibi_uinit(sk->an, mlen);
 	// get implementation
-	ds_t *impl = get_ds_impl(sk->an);
+	ds_t *impl = get_ibi_impl(sk->an)->ds;
 	// sign using the implementation
 	impl->siggen(sk->k, mbuf, mlen, &(uk->k));
 	// copy user id to the key
@@ -92,20 +95,21 @@ void __ibi_ukvrf(void *vpar, void *vusk, int *res){
 	ds_k_t *pk = (ds_k_t *)vpar;
 	ibi_u_t *uk = (ibi_u_t *)vusk;
 	if(uk->an != pk->an){ *res = 1; return; }
-	ds_t *impl = get_ds_impl(pk->an);
+	ds_t *impl = get_ibi_impl(pk->an)->ds;
 	impl->sigvrf(pk->k, uk->k, uk->m, uk->mlen, res);
 }
 
 void __ibi_uprint(void *in){
 	ibi_u_t *ri = (ibi_u_t *)in;
-	ds_t *impl = get_ds_impl(ri->an);
+	ds_t *impl = get_ibi_impl(ri->an)->ds;
 	printf("m :%s\n", ri->m);
 	impl->sgprint(ri->k);
 }
 
-size_t __ibi_userial(void *in, uint8_t *out){
+size_t __ibi_userial(void *in, uint8_t *out, size_t mblen){
 	ibi_u_t *ri = (ibi_u_t *)in; //recast key
-	ds_t *impl = get_ds_impl(ri->an); //get ds impl
+	ds_t *impl = get_ibi_impl(ri->an)->ds; //get ds impl
+	assert( mblen >= (__ibi_ukbslen(ri->an) + ri->mlen) ); //ensure enough buffer space
 	out[0] = ri->an;
 	size_t rs = 1; //skip first byte
 	rs += impl->sgserial(ri->k, out+rs);
@@ -115,7 +119,7 @@ size_t __ibi_userial(void *in, uint8_t *out){
 
 size_t __ibi_uconstr(const uint8_t *in, size_t len, void **out){
 	ibi_u_t *ri = __ibi_uinit(in[0], (len - __ibi_ukbslen(in[0])));
-	ds_t *impl = get_ds_impl(ri->an); //get ds impl
+	ds_t *impl = get_ibi_impl(ri->an)->ds; //get ds impl
 	size_t rs = 1; //first byte read
 	rs += impl->sgconstr(in+rs, &(ri->k));
 	rs = skipcopy(ri->m, in, rs, ri->mlen);
@@ -135,7 +139,6 @@ void __ibi_prvinit(void *vuk, void **state){
 void __ibi_cmtgen(void **state, uint8_t *cmt){
 	ibi_protst_t *tmp = (ibi_protst_t *)(*state);
 	ibi_t *impl = get_ibi_impl(tmp->an);
-	assert(tmp->an == 0);
 	impl->cmtgen( &(tmp->st), cmt );
 	*state = (void *)tmp;
 }

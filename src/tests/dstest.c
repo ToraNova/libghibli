@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#define BL 160
+
 int main(int argc, char *argv[]){
 
 	void *sk;
@@ -19,7 +21,7 @@ int main(int argc, char *argv[]){
 	int rc;
 	unsigned char msg[64];
 
-	unsigned char buf[160];
+	unsigned char buf[BL];
 	size_t alen, blen;
 	char *aptr;
 	unsigned char *bptr;
@@ -34,7 +36,7 @@ int main(int argc, char *argv[]){
 			gc.ds->keygen(i, &sk, &pk);
 
 			// serialize sk
-			blen = gc.ds->kserial(sk, buf);
+			blen = gc.ds->kserial(sk, buf, BL);
 			assert(blen == gc.ds->sklen(i));
 			gc.ds->kfree(sk); sk = NULL; //free
 
@@ -54,7 +56,7 @@ int main(int argc, char *argv[]){
 			//gc.ds->kprint(sk);
 
 			// serialize pk
-			blen = gc.ds->kserial(pk, buf);
+			blen = gc.ds->kserial(pk, buf, BL);
 			assert(blen == gc.ds->pklen(i));
 			gc.ds->kfree(pk); pk = NULL; //free
 
@@ -69,7 +71,7 @@ int main(int argc, char *argv[]){
 			// sign
 			gc.ds->sign(sk, msg, strlen(msg), &sg);
 
-			blen = gc.ds->rserial(sg, buf);
+			blen = gc.ds->rserial(sg, buf, BL);
 			assert(blen == gc.ds->sglen(i));
 			gc.ds->rfree(sg); sg = NULL;
 

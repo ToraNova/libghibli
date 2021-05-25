@@ -34,12 +34,14 @@
 #define GHIBC_SOCK_ERR 0x04 // socket creation/configuration error
 #define GHIBC_CONN_ERR 0x08 // connection cannot be established
 
+#define GHIBC_FLAG_VERBOSE 0x02 // verbosity flag
+
 struct __ghibli_file {
-	int (*setup)(char *, char *, int);
-	int (*issue)(char *, char *, char *);
-	int (*keycheck)(char *, char *, char **, size_t *);
-	int (*agent)(char *);
-	int (*pingver)(char *, char *, size_t, char *, size_t);
+	int (*setup)(char *, char *, int, int);
+	int (*issue)(char *, char *, char *, int);
+	int (*keycheck)(char *, char *, char **, size_t *, int);
+	int (*agent)(char *, int);
+	int (*pingver)(char *, char *, size_t, char *, size_t, int);
 };
 
 extern const struct __ghibli_file ghibfile;

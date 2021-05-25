@@ -23,70 +23,70 @@ int main(int argc, char *argv[]){
 
 	ghibc_init(); //doesn't matter, not using gc
 
-	schnorr.skgen(&secret);
+	schnorr91.skgen(&secret);
 
-	blen = schnorr.skserial(secret, bptr);
-	assert(blen == schnorr.sklen);
+	blen = schnorr91.skserial(secret, bptr);
+	assert(blen == schnorr91.sklen);
 	printf("SK :"); ucbprint(bptr, blen); printf("\n");
-	schnorr.skfree(secret);
-	schnorr.skconstr(bptr, &secret);
+	schnorr91.skfree(secret);
+	schnorr91.skconstr(bptr, &secret);
 
-	schnorr.pkext(secret, &pubkey);
+	schnorr91.pkext(secret, &pubkey);
 
-	blen = schnorr.pkserial(pubkey, bptr);
-	assert(blen == schnorr.pklen);
+	blen = schnorr91.pkserial(pubkey, bptr);
+	assert(blen == schnorr91.pklen);
 	printf("PK :"); ucbprint(bptr, blen); printf("\n");
-	schnorr.pkfree(pubkey);
-	schnorr.pkconstr(bptr, &pubkey);
+	schnorr91.pkfree(pubkey);
+	schnorr91.pkconstr(bptr, &pubkey);
 
-	schnorr.siggen(secret, msg, strlen(msg), &signat);
+	schnorr91.siggen(secret, msg, strlen(msg), &signat);
 
-	blen = schnorr.sgserial(signat, bptr);
-	assert(blen == schnorr.sglen);
+	blen = schnorr91.sgserial(signat, bptr);
+	assert(blen == schnorr91.sglen);
 	printf("SG :"); ucbprint(bptr, blen); printf("\n");
 	printf("SGL:%u\n", blen);
-	schnorr.sgfree(signat);
-	schnorr.sgconstr(bptr, &signat);
+	schnorr91.sgfree(signat);
+	schnorr91.sgconstr(bptr, &signat);
 
-	schnorr.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
+	schnorr91.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 	assert(rc == 0);
 	printf("%s : %d\n",msg,rc);
 
 	msg[0] = 'm';
-	schnorr.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
+	schnorr91.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 	assert(rc < 0);
 	printf("%s : %d\n",msg,rc);
 
 	msg[0] = 'h';
-	schnorr.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
+	schnorr91.sigvrf(pubkey, signat, msg, strlen(msg), &rc);
 	assert(rc == 0);
 	printf("%s : %d\n",msg,rc);
 
-	schnorr.skprint(secret);
-	schnorr.pkprint(pubkey);
-	schnorr.sgprint(signat);
+	schnorr91.skprint(secret);
+	schnorr91.pkprint(pubkey);
+	schnorr91.sgprint(signat);
 
 	unsigned char cmt[160];
 	unsigned char cha[64];
 	unsigned char res[160];
 	void *pst, *vst;
 
-	heng.prvinit(signat, msg, strlen(msg), &pst);
-	heng.cmtgen(&pst, cmt);
-	printf("T1 :"); ucbprint(cmt, heng.cmtlen); printf("\n");
+	heng04.prvinit(signat, msg, strlen(msg), &pst);
+	heng04.cmtgen(&pst, cmt);
+	printf("T1 :"); ucbprint(cmt, heng04.cmtlen); printf("\n");
 
-	heng.verinit(pubkey, msg, strlen(msg), &vst);
-	heng.chagen(cmt, &vst, cha);
-	printf("T2 :"); ucbprint(cha, heng.chalen); printf("\n");
+	heng04.verinit(pubkey, msg, strlen(msg), &vst);
+	heng04.chagen(cmt, &vst, cha);
+	printf("T2 :"); ucbprint(cha, heng04.chalen); printf("\n");
 
-	heng.resgen(cha, pst, res);
-	printf("T3 :"); ucbprint(res, heng.reslen); printf("\n");
+	heng04.resgen(cha, pst, res);
+	printf("T3 :"); ucbprint(res, heng04.reslen); printf("\n");
 
-	heng.protdc(res, vst, &rc);
+	heng04.protdc(res, vst, &rc);
 	assert(rc == 0); //OK
 	printf("prot : %d\n",rc);
 
-	schnorr.skfree(secret);
-	schnorr.pkfree(pubkey);
-	schnorr.sgfree(signat);
+	schnorr91.skfree(secret);
+	schnorr91.pkfree(pubkey);
+	schnorr91.sgfree(signat);
 }

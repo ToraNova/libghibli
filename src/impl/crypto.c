@@ -35,3 +35,23 @@ int __sodium_init(){
 	lerror("unable to initialize libsodium secure memory!\n");
 	return 1;
 }
+
+//assumes arr is alloc with RRS
+void __sodium_2rinhashexec(
+	const uint8_t *mbuf, size_t mlen,
+	uint8_t *ubuf,
+	uint8_t *vbuf,
+	uint8_t *oarr
+){
+	crypto_hash_sha512_state state;
+	uint8_t tbuf[RRH]; //hash
+	//compute hash
+	crypto_hash_sha512_init( &state );
+	crypto_hash_sha512_update( &state, mbuf, mlen);
+	crypto_hash_sha512_update( &state, ubuf, RRE);
+	crypto_hash_sha512_update( &state, vbuf, RRE);
+	crypto_hash_sha512_final( &state, tbuf);
+	crypto_core_ristretto255_scalar_reduce(
+		oarr, (const uint8_t *)tbuf
+	);
+}

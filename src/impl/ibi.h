@@ -58,7 +58,8 @@ typedef struct __ibi {
 	const size_t reslen;
 } ibi_t;
 
-extern const ibi_t heng;
+extern const ibi_t heng04;
+extern const ibi_t chin15;
 
 typedef struct __ibi_if {
 	void (*setup)(uint8_t, void **, void **); //generate a ds_k_t sk and pk (setup)
@@ -80,8 +81,8 @@ typedef struct __ibi_if {
 	uint8_t (*ktread)(void *);
 	uint8_t (*uaread)(void *);
 	void (*uiread)(void *, uint8_t **, size_t *);
-	size_t (*kserial)(void *, uint8_t *);
-	size_t (*userial)(void *, uint8_t *);
+	size_t (*kserial)(void *, uint8_t *, size_t);
+	size_t (*userial)(void *, uint8_t *, size_t);
 	size_t (*kconstr)(const uint8_t *, void **);
 	size_t (*uconstr)(const uint8_t *, size_t, void **);
 
