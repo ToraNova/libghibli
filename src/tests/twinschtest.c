@@ -89,4 +89,21 @@ int main(int argc, char *argv[]){
 	__chin15.skfree(secret);
 	__chin15.pkfree(pubkey);
 	__chin15.sgfree(signat);
+
+	unsigned char un0[] = "subang";
+	unsigned char un1[] = "qamari";
+
+	// hier test
+	void *u0, *u1, *u2;
+	__vangujar19.skgen(&secret);
+	__vangujar19.pkext(secret, &pubkey); //??
+
+	__vangujar19.siggen(secret, un0, strlen(un0), &u0); //base key
+	__vangujar19.sgprint(u0);
+	__vangujar19.sigvrf(pubkey, u0, un0, strlen(un0), &rc);
+	assert(rc == 0);
+
+	__vangujar19.siggen(u0, un1, strlen(un1), &u1); // l1 key
+	__vangujar19.sgprint(u1);
+
 }

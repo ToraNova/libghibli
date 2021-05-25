@@ -20,56 +20,26 @@
  * SOFTWARE.
  */
 
-#ifndef __CHIN15_H__
-#define __CHIN15_H__
+#include <string.h>
+#include <assert.h>
+#include <sodium.h>
+#include "../utils/bufhelp.h"
+#include "../utils/debug.h"
+#include "__crypto.h"
+#include "ibi.h"
+#include "chin15.h"
 
-#define CHIN15_PKLEN (2*RRE)
-#define CHIN15_SKLEN (2*RRS+CHIN15_PKLEN)
-#define CHIN15_SGLEN (3*RRS+2*RRE)
-
-struct __chin15_pk {
-	unsigned char *A;
-	unsigned char *B2; //second base
+/*
+const ibi_t vangujar19 = {
+	.ds = (ds_t *)&__vangujar19,
+	.prvinit = chin15.prvinit, //proto
+	.cmtgen = chin15.cmtgen,
+	.resgen = chin15.resgen,
+	.verinit = chin15.verinit,
+	.chagen = chin15.chagen,
+	.protdc = chin15.protdc,
+	.cmtlen = CHIN15_CMTLEN,
+	.chalen = CHIN15_CHALEN,
+	.reslen = CHIN15_RESLEN,
 };
-
-struct __chin15_sk {
-	unsigned char hf;
-	struct __chin15_pk *pub;
-	unsigned char *a1;
-	unsigned char *a2;
-};
-
-struct __chin15_sg {
-	unsigned char *s1;
-	unsigned char *s2;
-	unsigned char *x;
-	unsigned char *U; //precomputation
-	unsigned char *B2; //second base
-};
-
-struct __chin15_prvst {
-	uint8_t *s1;
-	uint8_t *s2;
-	uint8_t *U; //precomputation
-	uint8_t *B2;
-	uint8_t *nonce1;
-	uint8_t *nonce2;
-	uint8_t *mbuf;
-	size_t mlen;
-};
-
-struct __chin15_verst {
-	uint8_t *A;
-	uint8_t *B2;
-	uint8_t *c; //challenge
-	uint8_t *U; //precompute
-	uint8_t *NE; //commit nonce group element
-	uint8_t *mbuf;
-	size_t mlen;
-};
-
-#define CHIN15_CMTLEN (2*RRE)
-#define CHIN15_CHALEN RRS
-#define CHIN15_RESLEN (2*RRS)
-
-#endif
+*/

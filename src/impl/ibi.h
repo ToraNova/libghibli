@@ -60,6 +60,7 @@ typedef struct __ibi {
 
 extern const ibi_t heng04;
 extern const ibi_t chin15;
+extern const ibi_t vangujar19;
 
 typedef struct __ibi_if {
 	void (*setup)(uint8_t, void **, void **); //generate a ds_k_t sk and pk (setup)

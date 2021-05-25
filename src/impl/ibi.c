@@ -188,8 +188,82 @@ size_t __ibi_reslen(uint8_t an){
 	return impl->reslen;
 }
 
+void __ibi_keygen(uint8_t an, void **skout, void **pkout){
+	ds_k_t *sk = __ds_kinit(an,0); //secret key
+	ds_k_t *pk = __ds_kinit(an,1); //public key
+	ds_t *impl = get_ibi_impl(an)->ds; //get algorithm
+	impl->skgen(&(sk->k));
+	impl->pkext(sk->k, &(pk->k));
+	*skout = (void *)sk;
+	*pkout = (void *)pk;
+}
+
+size_t __ibi_sklen(uint8_t an){
+	ds_t *impl = get_ibi_impl(an)->ds; //get algorithm
+	return (impl->sklen + 2);
+}
+
+size_t __ibi_pklen(uint8_t an){
+	ds_t *impl = get_ibi_impl(an)->ds; //get algorithm
+	return (impl->pklen + 2);
+}
+
+size_t __ibi_kserial(void *in, uint8_t *out, size_t mblen){
+	ds_k_t *tmp = (ds_k_t *)in;
+	ds_t *impl = get_ibi_impl(tmp->an)->ds; //get algorithm
+	out[0] = tmp->an;
+	out[1] = tmp->t;
+	size_t rs = 2;
+	if(tmp->t){
+		assert( mblen >= __ibi_sklen(tmp->an) ); //ensure enough buffer space
+		rs += impl->pkserial(tmp->k, out+rs);
+	}else{
+		assert( mblen >= __ibi_sklen(tmp->an) ); //ensure enough buffer space
+		rs += impl->skserial(tmp->k, out+rs);
+	}
+	return rs;
+}
+
+void __ibi_kfree(void *in){
+	ds_k_t *tmp = (ds_k_t *)in;
+	ds_t *impl = get_ibi_impl(tmp->an)->ds; //get algorithm
+	if(tmp->t){
+		//public key
+		impl->pkfree(tmp->k);
+	}else{
+		//secret key
+		impl->skfree(tmp->k);
+	}
+	free(tmp);
+}
+
+size_t __ibi_kconstr(const uint8_t *in, void **out){
+	ds_k_t *tmp = __ds_kinit(in[0], in[1]);
+	ds_t *impl = get_ibi_impl(in[0])->ds; //get algorithm
+	size_t rs = 2; //2 bytes read (an and k)
+	if(in[1]){
+		rs += impl->pkconstr(in+rs, &(tmp->k));
+	}else{
+		rs += impl->skconstr(in+rs, &(tmp->k));
+	}
+	*out = (void *)tmp;
+	return rs;
+}
+
+void __ibi_kprint(void *in){
+	ds_k_t *tmp = (ds_k_t *)in;
+	ds_t *impl = get_ibi_impl(tmp->an)->ds; //get algorithm
+	if(tmp->t){
+		printf("public key, an: %02X\n",tmp->an);
+		impl->pkprint(tmp->k);
+	}else{
+		printf("private key, an: %02X\n",tmp->an);
+		impl->skprint(tmp->k);
+	}
+}
+
 const ibi_if_t ibi = {
-	.setup = __ds_keygen,
+	.setup = __ibi_keygen,
 	.issue = __ibi_ukgen,
 	.validate = __ibi_ukvrf,
 
@@ -200,23 +274,23 @@ const ibi_if_t ibi = {
 	.resgen = __ibi_resgen,
 	.protdc = __ibi_protdc,
 
-	.kfree = __ds_kfree,
+	.kfree = __ibi_kfree,
 	.ufree = __ibi_ufree,
 	.karead = __ds_karead,
 	.ktread = __ds_ktread,
 	.uaread = __ibi_uaread,
 	.uiread = __ibi_uiread,
-	.kserial = __ds_kserial,
+	.kserial = __ibi_kserial,
 	.userial = __ibi_userial,
-	.kconstr = __ds_kconstr,
+	.kconstr = __ibi_kconstr,
 	.uconstr = __ibi_uconstr,
 
 	.cmtlen = __ibi_cmtlen,
 	.chalen = __ibi_chalen,
 	.reslen = __ibi_reslen,
-	.pklen = __ds_pklen,
-	.sklen = __ds_sklen,
+	.pklen = __ibi_pklen,
+	.sklen = __ibi_sklen,
 	.ukbslen = __ibi_ukbslen,
-	.kprint = __ds_kprint,
+	.kprint = __ibi_kprint,
 	.uprint = __ibi_uprint,
 };

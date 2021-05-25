@@ -20,6 +20,8 @@
  * SOFTWARE.
  */
 
+// TWIN SCHNORR IBI implementation
+
 #include <string.h>
 #include <assert.h>
 #include <sodium.h>
@@ -28,31 +30,6 @@
 #include "__crypto.h"
 #include "ibi.h"
 #include "chin15.h"
-
-#define CHIN15_CMTLEN (2*RRE)
-#define CHIN15_CHALEN RRS
-#define CHIN15_RESLEN (2*RRS)
-
-struct __chin15_prvst {
-	uint8_t *s1;
-	uint8_t *s2;
-	uint8_t *U; //precomputation
-	uint8_t *B2;
-	uint8_t *nonce1;
-	uint8_t *nonce2;
-	uint8_t *mbuf;
-	size_t mlen;
-};
-
-struct __chin15_verst {
-	uint8_t *A;
-	uint8_t *B2;
-	uint8_t *c; //challenge
-	uint8_t *U; //precompute
-	uint8_t *NE; //commit nonce group element
-	uint8_t *mbuf;
-	size_t mlen;
-};
 
 void __chin15_prvstfree(void *state){
 	struct __chin15_prvst *tmp = (struct __chin15_prvst *)state; //parse state
@@ -203,6 +180,7 @@ struct __chin15_pk *__chin15_pkinit(void){
 struct __chin15_sk *__chin15_skinit(void){
 	struct __chin15_sk *out;
 	out = (struct __chin15_sk *)malloc( sizeof(struct __chin15_sk) );
+	out->hf = 0;
 	out->a1 = (uint8_t *)sodium_malloc( RRS );
 	out->a2 = (uint8_t *)sodium_malloc( RRS );
 	out->pub = __chin15_pkinit();
@@ -313,8 +291,7 @@ void __chin15_siggen(
 	crypto_core_ristretto255_scalar_random(nonce1);
 	crypto_core_ristretto255_scalar_random(nonce2);
 
-	rc = 0;
-	rc += crypto_scalarmult_ristretto255_base( tmp->U, nonce1); // nP
+	rc = crypto_scalarmult_ristretto255_base( tmp->U, nonce1); // nP
 	rc += crypto_scalarmult_ristretto255(tmp->B2, nonce2, key->pub->B2); // n2P2
 
 	rc += crypto_core_ristretto255_add(tmp->U, tmp->U, tmp->B2);
@@ -484,4 +461,142 @@ const ibi_t chin15 = {
 	.cmtlen = CHIN15_CMTLEN,
 	.chalen = CHIN15_CHALEN,
 	.reslen = CHIN15_RESLEN,
+};
+
+// Hierarchical IBI implementation
+
+struct __vangujar19_sg {
+	uint8_t hf;
+	uint8_t hl; //hier level: 0-root
+	uint8_t *A; //public stored here as well
+	void *d; //key (chin15 design)
+	uint8_t *hn; //hier name
+	size_t hnlen; //hier name length
+};
+
+struct __vangujar19_sg *__vangujar19_sginit(size_t hnlen){
+	struct __vangujar19_sg *out;
+	out = (struct __vangujar19_sg *)malloc( sizeof( struct __vangujar19_sg) );
+	out->hf = 1; //this is a hierarchical key
+	out->hn = (uint8_t *)malloc(hnlen);
+	out->A = (uint8_t *)malloc(RRE);
+	out->hnlen = hnlen;
+	return out;
+};
+
+void __vangujar19_sgfree(void *in){
+	struct __vangujar19_sg *ri = (struct __vangujar19_sg *)in;
+	__chin15.sgfree( ri->d ); //free chin15 sig
+	free(ri);
+}
+
+void __vangujar19_siggen(
+	void *vkey,
+	const uint8_t *mbuf, size_t mlen,
+	void **out
+){
+	int rc;
+	//declare and allocate for signature struct
+	struct __vangujar19_sg *tmp;
+
+	if(!((uint8_t *)vkey)[0]) {
+ 		//key recast
+		struct __chin15_sk *key = (struct __chin15_sk *)vkey;
+		tmp = __vangujar19_sginit(mlen);
+		//normal chin15 sig (the is the base of the hier
+		__chin15.siggen(vkey, mbuf, mlen, &(tmp->d));
+		// create signature will have hf set to 1
+		tmp->hl = 0; //this is the root key (ID0)
+		memcpy(tmp->hn, mbuf, mlen); //copy hier name
+		memcpy(tmp->A,  key->pub->A, RRE);
+	}else{
+		//key recast
+		struct __vangujar19_sg *key = (struct __vangujar19_sg *)vkey;
+		tmp = __vangujar19_sginit(key->hnlen+mlen+1);
+		tmp->hl = key->hl + 1; //hier down
+		memcpy( tmp->hn, key->hn, key->hnlen);
+		(tmp->hn)[key->hnlen] = '.'; //hier separator
+		memcpy( (tmp->hn+key->hnlen+1), mbuf, mlen);
+
+		struct __chin15_sg *ri = __chin15_sginit();
+		struct __chin15_sg *rk = (struct __chin15_sg *) key->d;
+
+		uint8_t nonce1[RRS], nonce2[RRS];
+		//sample r (MUST RANDOMIZE, else secret key a will be exposed)
+		crypto_core_ristretto255_scalar_random(nonce1);
+		crypto_core_ristretto255_scalar_random(nonce2);
+		crypto_core_ristretto255_scalar_add(nonce1, rk->s1, nonce1);
+		crypto_core_ristretto255_scalar_add(nonce2, rk->s2, nonce2);
+
+		rc = crypto_scalarmult_ristretto255_base( ri->U, nonce1); // nP
+		rc += crypto_scalarmult_ristretto255(ri->B2, nonce2, rk->B2); // n2P2
+
+		rc += crypto_core_ristretto255_add(ri->U, ri->U, ri->B2);
+		__sodium_2rinhashexec(tmp->hn, tmp->hnlen, ri->U, tmp->A, ri->x);
+
+		// s1 = r1 + xa1
+		crypto_core_ristretto255_scalar_add( ri->s1 , ri->x, rk->s1 );
+		crypto_core_ristretto255_scalar_add( ri->s1, ri->s1, nonce1 );
+
+		// s2 = r2 + xa2
+		crypto_core_ristretto255_scalar_add( ri->s2 , ri->x, rk->s2 );
+		crypto_core_ristretto255_scalar_add( ri->s2, ri->s2, nonce2 );
+		assert(rc == 0);
+
+		//store B2 and A on the signature
+		memcpy( ri->B2, rk->B2, RRE );
+		memcpy( tmp->A, key->A, RRE );
+		tmp->d = ri; //assign signature into
+
+		//ensure zero
+		memset( nonce1, 0, RRS);
+		memset( nonce2, 0, RRS);
+	}
+	*out = (void *) tmp;
+}
+
+void __vangujar19_sigvrf(
+	void *vpar,
+	void *vsig,
+	const uint8_t *mbuf, size_t mlen,
+	int *res
+){
+	struct __vangujar19_sg *sig = (struct __vangujar19_sg *)vsig;
+
+	if(sig->hl < 1){
+		__chin15.sigvrf(vpar, (void *)(sig->d), mbuf, mlen, res);
+	}else{
+		//TODO: you stopped here
+		*res = -1; //not implemented yet
+	}
+}
+
+void __vangujar19_sgprint(void *in){
+	struct __vangujar19_sg *ri = (struct __vangujar19_sg *)in;
+	printf("hl:%u hnlen:%u\n", ri->hl, ri->hnlen);
+	printf("hn:%s\n", ri->hn);
+	__chin15.sgprint(ri->d);
+	printf("A :"); ucbprint(ri->A, RRE); printf("\n");
+}
+
+const ds_t __vangujar19 = {
+	.skgen = __chin15_skgen,
+	.pkext = __chin15_pkext,
+	.siggen = __vangujar19_siggen, //hc
+	.sigvrf = __vangujar19_sigvrf, //hc
+	.skfree = __chin15_skfree,
+	.pkfree = __chin15_pkfree,
+	.sgfree = __chin15_sgfree,
+	.skprint = __chin15_skprint,
+	.pkprint = __chin15_pkprint,
+	.sgprint = __vangujar19_sgprint,
+	.skserial = __chin15_skserial,
+	.pkserial = __chin15_pkserial,
+	.sgserial = __chin15_sgserial,
+	.skconstr = __chin15_skconstr,
+	.pkconstr = __chin15_pkconstr,
+	.sgconstr = __chin15_sgconstr,
+	.sklen = CHIN15_SKLEN,
+	.pklen = CHIN15_PKLEN,
+	.sglen = CHIN15_SGLEN,
 };

@@ -30,8 +30,6 @@ ds_t *get_ds_impl(uint8_t an){
 	switch(an){
 		case 0:
 			return (ds_t *)&schnorr91;
-		case 1:
-			return (ds_t *)&__chin15;
 		default:
 			assert(0); //error
 			return (ds_t *)&schnorr91;

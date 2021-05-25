@@ -64,6 +64,7 @@ typedef struct __ds {
 // ds implemented
 extern const ds_t schnorr91;
 extern const ds_t __chin15; //not to be used
+extern const ds_t __vangujar19; //not to be used
 
 // interfaces
 typedef struct __ds_if {
@@ -93,24 +94,24 @@ extern const ds_if_t ds;
 ds_t *get_ds_impl(uint8_t an);
 
 // for internal usage
-size_t __ds_sklen(uint8_t an);
-size_t __ds_pklen(uint8_t an);
-size_t __ds_sglen(uint8_t an);
+//size_t __ds_sklen(uint8_t an);
+//size_t __ds_pklen(uint8_t an);
+//size_t __ds_sglen(uint8_t an);
 ds_k_t *__ds_kinit(uint8_t an, uint8_t t);
-ds_s_t *__ds_sinit(uint8_t an);
-void __ds_keygen(uint8_t an, void **skout, void **pkout);
-void __ds_kfree(void *in);
-void __ds_rfree(void *in);
 uint8_t __ds_ktread(void *in);
 uint8_t __ds_karead(void *in);
-uint8_t __ds_raread(void *in);
-size_t __ds_kserial(void *in, uint8_t *out, size_t mblen);
-size_t __ds_rserial(void *in, uint8_t *out, size_t mblen);
-size_t __ds_kconstr(const uint8_t *in, void **out);
-size_t __ds_rconstr(const uint8_t *in, void **out);
-void __ds_sign(void *vkey, const uint8_t *mbuf, size_t mlen, void **out);
-void __ds_verify(void *vpar, void *vsig, const uint8_t *mbuf, size_t mlen, int *res);
-void __ds_kprint(void *in);
-void __ds_rprint(void *in);
+//ds_s_t *__ds_sinit(uint8_t an);
+//void __ds_keygen(uint8_t an, void **skout, void **pkout);
+//void __ds_kfree(void *in);
+//void __ds_rfree(void *in);
+//uint8_t __ds_raread(void *in);
+//size_t __ds_kserial(void *in, uint8_t *out, size_t mblen);
+//size_t __ds_rserial(void *in, uint8_t *out, size_t mblen);
+//size_t __ds_kconstr(const uint8_t *in, void **out);
+//size_t __ds_rconstr(const uint8_t *in, void **out);
+//void __ds_sign(void *vkey, const uint8_t *mbuf, size_t mlen, void **out);
+//void __ds_verify(void *vpar, void *vsig, const uint8_t *mbuf, size_t mlen, int *res);
+//void __ds_kprint(void *in);
+//void __ds_rprint(void *in);
 
 #endif
