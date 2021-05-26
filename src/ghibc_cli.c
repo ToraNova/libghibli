@@ -154,6 +154,8 @@ int main(int argc, char *argv[], char *envp[]){
 			rc = ghibfile.keycheck(arguments.mpkfile, arguments.uskfile, &arguments.uident, &len, arguments.flags);
 			if(rc == 0){
 				printf("User key (%s) on file %s is valid.\n", arguments.uident, arguments.uskfile);
+			}else{
+				printf("Invalid key.\n");
 			}
 			if(rc == GHIBC_FAIL || rc == GHIBC_NO_ERR){
 				free(arguments.uident);
@@ -164,19 +166,22 @@ int main(int argc, char *argv[], char *envp[]){
 				lerror("Unspecified usk(-u) file in agent mode.\n");
 				return -1;
 			}
+
 			ghibfile.agent(arguments.uskfile, arguments.flags);
 			// won't reach here
 			break;
 		case PINGVER:
-			if(arguments.mpkfile == NULL || arguments.uident == NULL || arguments.agsock == NULL){
+			if(arguments.mpkfile == NULL || arguments.uident == NULL){
 				lerror("Unspecified mpk(-p)/identity(-i)/agentsock(-q) in ping-verify(pingv) mode.\n");
 				return -1;
 			}
-			rc = ghibfile.pingver(arguments.mpkfile, arguments.uident, strlen(arguments.uident), arguments.agsock, strlen(arguments.agsock), arguments.flags);
+
+			len = arguments.agsock ? strlen(arguments.agsock) : 0;
+			rc = ghibfile.pingver(arguments.mpkfile, arguments.uident, strlen(arguments.uident), arguments.agsock, len, arguments.flags);
 			if(rc == 0){
-				printf("Ping verify succeed for id: %s on agent socket:%s\n", arguments.uident, arguments.agsock);
+				printf("Ping verify succeed for id: %s.\n", arguments.uident);
 			}else{
-				printf("Ping verify failed for id: %s on agent socket:%s\n", arguments.uident, arguments.agsock);
+				printf("Ping verify failed for id: %s.\n", arguments.uident);
 			}
 			break;
 		default:

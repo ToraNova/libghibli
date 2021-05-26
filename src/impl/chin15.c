@@ -339,7 +339,6 @@ void __chin15_sigvrf(
 	*res += crypto_core_ristretto255_add(tmp1, tmp1, tmp2); // U' = (s1B+s2B2)-xA
 
 	__sodium_2rinhashexec(mbuf, mlen, tmp1, par->A, xp);
-
 	//check if hash is equal to x from vsig
 	*res += crypto_verify_32( xp, sig->x );
 }
@@ -464,6 +463,8 @@ const ibi_t chin15 = {
 };
 
 // Hierarchical IBI implementation
+// TODO: vangujar's scheme is incomplete.
+/*
 
 struct __vangujar19_sg {
 	uint8_t hf;
@@ -530,9 +531,12 @@ void __vangujar19_siggen(
 
 		rc = crypto_scalarmult_ristretto255_base( ri->U, nonce1); // nP
 		rc += crypto_scalarmult_ristretto255(ri->B2, nonce2, rk->B2); // n2P2
-
 		rc += crypto_core_ristretto255_add(ri->U, ri->U, ri->B2);
-		__sodium_2rinhashexec(tmp->hn, tmp->hnlen, ri->U, tmp->A, ri->x);
+
+		__sodium_2rinhashexec(tmp->hn, tmp->hnlen, ri->U, key->A, ri->x);
+		printf("----U :"); ucbprint(ri->U, RRE); printf("\n");
+		printf("----A :"); ucbprint(key->A, RRE); printf("\n");
+		printf("----mb:%s\n", tmp->hn);
 
 		// s1 = r1 + xa1
 		crypto_core_ristretto255_scalar_add( ri->s1 , ri->x, rk->s1 );
@@ -566,8 +570,7 @@ void __vangujar19_sigvrf(
 	if(sig->hl < 1){
 		__chin15.sigvrf(vpar, (void *)(sig->d), mbuf, mlen, res);
 	}else{
-		//TODO: you stopped here
-		*res = -1; //not implemented yet
+		__chin15.sigvrf(vpar, (void *)(sig->d), sig->hn, sig->hnlen, res);
 	}
 }
 
@@ -600,3 +603,4 @@ const ds_t __vangujar19 = {
 	.pklen = CHIN15_PKLEN,
 	.sglen = CHIN15_SGLEN,
 };
+*/

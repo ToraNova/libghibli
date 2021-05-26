@@ -27,6 +27,8 @@
 
 #include "core.h"
 
+#define SOCK_AT_USER_HOME 1
+
 #define GHIBC_FAIL     -1   // indicate a general failure
 #define GHIBC_NO_ERR   0    // indicate ok
 #define GHIBC_FILE_ERR 0x01 // unable to open file for reading
@@ -35,6 +37,8 @@
 #define GHIBC_CONN_ERR 0x08 // connection cannot be established
 
 #define GHIBC_FLAG_VERBOSE 0x02 // verbosity flag
+
+#define GHIBC_BLEN 512
 
 struct __ghibli_file {
 	int (*setup)(char *, char *, int, int);

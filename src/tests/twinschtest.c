@@ -10,6 +10,9 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define BASE_TEST
+#undef HIER_TEST
+
 int main(int argc, char *argv[]){
 
 	void *secret;
@@ -23,6 +26,7 @@ int main(int argc, char *argv[]){
 
 	ghibc_init(); //doesn't matter, not using gc
 
+#ifdef BASE_TEST
 	__chin15.skgen(&secret);
 
 	blen = __chin15.skserial(secret, bptr);
@@ -89,6 +93,9 @@ int main(int argc, char *argv[]){
 	__chin15.skfree(secret);
 	__chin15.pkfree(pubkey);
 	__chin15.sgfree(signat);
+#endif
+
+#ifdef HIER_TEST
 
 	unsigned char un0[] = "subang";
 	unsigned char un1[] = "qamari";
@@ -98,12 +105,17 @@ int main(int argc, char *argv[]){
 	__vangujar19.skgen(&secret);
 	__vangujar19.pkext(secret, &pubkey); //??
 
+	printf("----h0----\n");
 	__vangujar19.siggen(secret, un0, strlen(un0), &u0); //base key
 	__vangujar19.sgprint(u0);
 	__vangujar19.sigvrf(pubkey, u0, un0, strlen(un0), &rc);
 	assert(rc == 0);
 
+	printf("----h1----\n");
 	__vangujar19.siggen(u0, un1, strlen(un1), &u1); // l1 key
 	__vangujar19.sgprint(u1);
+	__vangujar19.sigvrf(pubkey, u1, un1, strlen(un1), &rc);
+	assert(rc == 0);
+#endif
 
 }

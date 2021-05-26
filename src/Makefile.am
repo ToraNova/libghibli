@@ -4,7 +4,7 @@
 lib_LTLIBRARIES = libghibli.la
 libghibli_la_SOURCES =	utils/bufhelp.c utils/simplesock.c utils/futil.c utils/jbase64.c \
 			impl/crypto.c impl/ibi.c impl/ds.c \
-			impl/schnorr91.c impl/heng04.c impl/chin15.c impl/vangujar19.c \
+			impl/schnorr91.c impl/heng04.c impl/chin15.c \
 			core.c ghibli.c
 libghibli_la_LDFLAGS = -lsodium
 

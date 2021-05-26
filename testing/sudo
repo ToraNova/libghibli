@@ -1,0 +1,8 @@
+#%PAM-1.0
+# example of using ghibc for sudo authentication
+# if the ghibc module success, skip the pam_deny module
+auth   		[success=1 default=bad]	pam_ghibc.so /home/cjason/prodev/libghibli/testing/sk.pub
+auth 		requisite               pam_deny.so
+auth 		required                pam_permit.so
+account 	include 		system-auth
+session 	include 		system-auth

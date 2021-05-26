@@ -9,13 +9,13 @@
 #include <sys/un.h>
 #include <assert.h>
 #include <time.h>
-
-#define BL 512
+#include <errno.h>
+#include <sys/stat.h>
 
 // generates the master key to a file, based on AN
 int __mastergen_file(char *skfilename, char *pkfilename, int an, int flags){
 	void *sk, *pk;
-	unsigned char buf[BL]; size_t blen;
+	unsigned char buf[GHIBC_BLEN]; size_t blen;
 
 	FILE *skfile = fopen(skfilename, "w");
 	if(skfile == NULL){
@@ -39,12 +39,12 @@ int __mastergen_file(char *skfilename, char *pkfilename, int an, int flags){
 		gc.ibi->kprint(pk);
 	}
 
-	blen = gc.ibi->kserial(sk, buf, BL);
+	blen = gc.ibi->kserial(sk, buf, GHIBC_BLEN);
 	gc.ibi->kfree(sk);
 	write_b64(skfile, buf, blen);
 	fclose(skfile);
 
-	blen = gc.ibi->kserial(pk, buf, BL);
+	blen = gc.ibi->kserial(pk, buf, GHIBC_BLEN);
 	gc.ibi->kfree(pk);
 	write_b64(pkfile, buf, blen);
 	fclose(pkfile);
@@ -54,7 +54,7 @@ int __mastergen_file(char *skfilename, char *pkfilename, int an, int flags){
 int __usergen_file(char *skfilename, char *ukfilename, char *identity, int flags){
 	void *sk, *uk;
 	unsigned char *bptr; size_t blen;
-	unsigned char buf[BL];
+	unsigned char buf[GHIBC_BLEN];
 
 	FILE *skfile = fopen(skfilename, "r");
 	if(skfile == NULL){
@@ -84,7 +84,7 @@ int __usergen_file(char *skfilename, char *ukfilename, char *identity, int flags
 		gc.ibi->uprint(uk);
 	}
 
-	blen = gc.ibi->userial(uk, buf, BL);
+	blen = gc.ibi->userial(uk, buf, GHIBC_BLEN);
 
 	gc.ibi->kfree(sk);
 	gc.ibi->ufree(uk);
@@ -187,6 +187,23 @@ int __ping_verifier_file(char *pkfilename, char *uid, size_t uidlen, char *sp, s
 		goto teardown;
 	}
 
+	// sp not set, use env or home sock
+	if( !sp ){
+		// get auth socket
+#if SOCK_AT_USER_HOME
+		char *uh = getenv("HOME"); //user home directory
+		sp = (char *) calloc(64, 1);
+		snprintf(sp, 64, "%s/.ghibc/agent.sock", uh); //socket @ user home
+#else
+		sp = getenv("GHIBC_AUTH_SOCK");
+		if( !sp ){
+			fprintf(stderr,"GHIBC_AUTH_SOCK not set.\n");
+			return PAM_AUTHINFO_UNAVAIL;
+		}
+#endif
+		splen = strlen(sp);
+	}
+
 	// initialize socket addr
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX; //set address type
@@ -224,10 +241,8 @@ teardown:
 
 int __prover_unix_agent_file(char *ukfilename, int flags){
 	void *uk, *pst;
-	pid_t pid;
 	unsigned char *bptr; size_t blen;
 	int an, rc, sd, cd;
-	char sp[64];
 	unsigned char sbuf[320];
 	unsigned char rbuf[64];
 	struct sockaddr_un addr; //sockaddr type for unix
@@ -271,9 +286,27 @@ int __prover_unix_agent_file(char *ukfilename, int flags){
 		goto teardown;
 	}
 
+	pid_t pid = getpid();
+	char sp[64];
+#if SOCK_AT_USER_HOME
+	char *uh = getenv("HOME"); //user home directory
+	snprintf(sp, 64, "%s/.ghibc", uh); //socket @ user home
+	rc = mkdir(sp, 0700);
+	if( rc == -1 && errno != EEXIST){
+		//error but is not already exist error
+		if( flags & GHIBC_FLAG_VERBOSE )
+			perror("mkdir");
+		close(sd);
+		rc = GHIBC_SOCK_ERR;
+		goto teardown;
+	}
+	snprintf(sp, 64, "%s/.ghibc/agent.sock", uh); //ssh-agent style
+#else
+	assert(0); //TODO: only use this when pam is fixed
+	snprintf(sp, 64, "/tmp/ghibc-ag%d", pid); //ssh-agent style
+#endif
+
 	// initialize socket addr
-	pid = getpid();
-	sprintf(sp, "/tmp/ghibc-ag%d", pid);
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX; //set address type
 	memcpy(addr.sun_path, sp, strlen(sp)); //set socket path

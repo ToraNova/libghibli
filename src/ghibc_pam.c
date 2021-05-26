@@ -38,10 +38,6 @@
 
 #include "ghibli.h"
 
-#if HAVE_SECURE_GETENV
-#define __USE_GNU
-#endif
-
 /*
  * defined in pwd.h
  * struct passwd {
@@ -54,27 +50,22 @@
  *                char   *pw_shell;      // shell program
  * };
 */
+extern char **environ;
 
 // PAM entry point for authentication verification (ensure user is who they claim they are)
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
 	// TODO: handle authentication code here
 	// flags: PAM_SILENT, PAM_DISALLOW_NULL_AUTHTOK
 	char *user = NULL; //variable to store username
-	char *asock = NULL; //ibi-agent authsock
-	char *pkfname = NULL; //to store pk filename
 	int rc, flag = 0;
-
-	if(argc < 1){
-		return PAM_NO_MODULE_DATA;
-	}
-
-	pkfname = (char *) argv[0];
+	pam_set_item(pamh, PAM_AUTHTOK, ""); //set an empty authtok (no password)
 
 	// ensure pkfile specified
-	if(pkfname == NULL){
-		// need to specify public file using mpub=<filename>
+	if(argc < 1){
+		fprintf(stderr,"pkfile not set.\n");
 		return PAM_NO_MODULE_DATA;
 	}
+	char *pkfname = (char *) argv[0];//store pkfilename
 
 	// get username, 3rd arg is prompt "login:" (default).
 	rc = pam_get_user(pamh, (const char **) &user, "login: ");
@@ -92,28 +83,28 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 		return PAM_USER_UNKNOWN;
 	}
 
+	// get user auth socket (at home)
+#if SOCK_AT_USER_HOME
+	char *asock = (char *) calloc(64, 1);
+	snprintf(asock, 64, "%s/.ghibc/agent.sock", pdat->pw_dir); //socket @ user home
+#else
+	assert(0); //issues not fixed yet, how to get pam to use the user's env
+	// unable to get GHIBC_AUTH_SOCK from getenv if running from libpam context
+#endif
+
 	// get and store euid of the runner
 	euid = geteuid();
 	if(getuid() != euid || euid == 0 ){
 		rc = seteuid(pdat->pw_uid); //drop privilege to user's privilege
-		if (!rc){
-			//perror("seteuid");
+		if (rc < 0){
+			perror("seteuid");
 			return PAM_AUTH_ERR;
 		}
 		flag = 1;
 		//rmb to reset euid back to original 'euid'
 	}
 
-	// obtain user auth socket
-	//asock = secure_getenv("GHIBC_AUTH_SOCK");
-	asock = getenv("GHIBC_AUTH_SOCK");
-	if( asock == NULL ){
-		// ibi agent not running?
-		return PAM_AUTHINFO_UNAVAIL;
-	}
-
 	ghibc_init();
-
 	rc = ghibfile.pingver(pkfname, user, strlen(user), asock, strlen(asock), 0);
 	switch(rc){
 		case GHIBC_NO_ERR:
@@ -141,12 +132,48 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
 	if(flag){
 		rc = seteuid(euid);
-		if(!rc){
+		if(rc < 0){
 			// something is wrong?
-			return PAM_SERVICE_ERR;
+			perror("seteuid");
+			return PAM_AUTH_ERR;
 		}
 	}
 
 	// see /usr/include/security/_pam_types.h for a list of return codes.
 	return PAM_SUCCESS; //return this if and only if you are sure the user valid and present.
+}
+
+// PAM entry point for session creation
+int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+	//TODO: handle session start
+	//code runs when app calls pam_open_session
+	// flags: PAM_SILENT
+	return PAM_IGNORE;
+}
+
+// PAM entry point for session cleanup
+int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+	//TODO: handle session close
+	//code runs when app calls pam_close_session
+	// flags: PAM_SILENT
+	return PAM_IGNORE;
+}
+
+// PAM entry point for setting user credentials (that is, to actually
+// establish the authenticated user's credentials to the service provider)
+// this runs BEFORE session opens, see man pam_setcred
+int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+	// TODO: handle credential change
+	// user has been authenticated, and would like to change their credentials
+	// flags:
+	// PAM_SILENT, PAM_ESTABLISH_CRED, PAM_DELETE_CRED, PAM_REINITIALIZE_CRED, PAM_REFRESH_CRED
+	return PAM_IGNORE;
+}
+
+// PAM entry point for authentication token (password) changes
+int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+	// TODO: handle (re-)set of the authentication token of the user
+	// flags:
+	// PAM_SILENT, PAM_CHANGE_EXPIRED_AUTHTOK, PAM_PRELIM_CHECK, PAM_UPDATE_AUTHTOK
+	return PAM_IGNORE;
 }
