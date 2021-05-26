@@ -265,6 +265,7 @@ size_t __schnorr91_sgconstr(const uint8_t *in, void **out){
 }
 
 const ds_t schnorr91 = {
+	.hier = 0, //non hierarchical
 	.skgen = __schnorr91_skgen,
 	.pkext = __schnorr91_pkext,
 	.siggen = __schnorr91_siggen,

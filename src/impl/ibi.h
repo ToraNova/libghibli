@@ -44,7 +44,8 @@ typedef struct __ibi {
 	ds_t *ds;
 	//used by prover
 	//generates a state information
-	void (*prvinit)(void *vusk, const uint8_t *mbuf, size_t mlen, void **state);
+	//void (*prvinit)(void *vusk, const uint8_t *mbuf, size_t mlen, void **state);
+	void (*prvinit)(void *, const uint8_t *, size_t, void **);
 	void (*cmtgen)(void **, uint8_t *);
 	void (*resgen)(const uint8_t *, void *, uint8_t *);
 
@@ -95,6 +96,8 @@ typedef struct __ibi_if {
 	size_t (*cmtlen)(uint8_t);
 	size_t (*chalen)(uint8_t);
 	size_t (*reslen)(uint8_t);
+	size_t (*fqnread)(void *, uint8_t **);
+	int (*ishier)(uint8_t);
 } ibi_if_t;
 
 extern const ibi_if_t ibi;

@@ -40,6 +40,7 @@ typedef struct __ds_s {
 
 // raw implementation
 typedef struct __ds {
+	const int hier; //indicate if this is hierarchical
 	void (*skgen)(void **); //generate secret key
 	void (*pkext)(void *, void **); //obtain pubkey from secret
 	void (*siggen)(void *, const uint8_t *, size_t, void **);
@@ -56,6 +57,7 @@ typedef struct __ds {
 	size_t (*skconstr)(const uint8_t *, void **);
 	size_t (*pkconstr)(const uint8_t *, void **);
 	size_t (*sgconstr)(const uint8_t *, void **);
+	size_t (*fqnread)(void *, uint8_t **);
 	const size_t sklen;
 	const size_t pklen;
 	const size_t sglen;
@@ -87,6 +89,7 @@ typedef struct __ds_if {
 	size_t (*sglen)(uint8_t); //length of sg based on algo
 	void (*kprint)(void *); //debugging use (print keys)
 	void (*rprint)(void *);
+	size_t (*fqnread)(void *, uint8_t **);
 } ds_if_t;
 
 extern const ds_if_t ds;

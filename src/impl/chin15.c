@@ -40,7 +40,7 @@ void __chin15_prvstfree(void *state){
 	memset(tmp->U, 0, RRE); //clear and free
 	free(tmp->U);
 	free(tmp->B2);
-	free(tmp->mbuf);
+	//free(tmp->mbuf);
 	free(tmp);
 }
 
@@ -55,15 +55,16 @@ void __chin15_verstfree(void *state){
 	free(tmp);
 }
 
+//mbuf and mlen unused
 void __chin15_prvinit(void *vusk, const uint8_t *mbuf, size_t mlen, void **state){
 	struct __chin15_sg *usk = (struct __chin15_sg *)vusk;
 	struct __chin15_prvst *tmp;
 	tmp = (struct __chin15_prvst *)malloc(sizeof(struct __chin15_prvst));
 
-	//allocate and copy for mbuf
-	tmp->mbuf = (uint8_t *)malloc(mlen);
-	tmp->mlen = mlen;
-	memcpy(tmp->mbuf, mbuf, mlen);
+	//allocate and copy for mbuf (mbuf not needed on prover side actually)
+	//tmp->mbuf = (uint8_t *)malloc(mlen);
+	//tmp->mlen = mlen;
+	//memcpy(tmp->mbuf, mbuf, mlen);
 
 	//copy secrets, vusk no longer needed
 	tmp->s1 = (uint8_t *)sodium_malloc(RRS);
@@ -152,15 +153,15 @@ void __chin15_chagen(const uint8_t *cmt, void **state, uint8_t *cha){
 void __chin15_protdc(const uint8_t *res, void *state, int *dec){
 	struct __chin15_verst *tmp = (struct __chin15_verst *)(state); //parse state
 
-	uint8_t rhs[RRE]; uint8_t lhs[RRE]; uint8_t tbuf[RRS];
-	__sodium_2rinhashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->A, rhs);
+	uint8_t rhs[RRE], lhs[RRE], tbuf[RRS], xp[RRS];
+	__sodium_2rinhashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->A, xp);
 
 	// yB = T + c( U' - xP1 )
 	*dec = crypto_scalarmult_ristretto255_base( lhs, res); //y1B1
 	*dec += crypto_scalarmult_ristretto255( tbuf, res+RRS, tmp->B2); //y2B2
 	*dec += crypto_core_ristretto255_add( lhs, lhs, tbuf); // lhs :y1B1 + y2B2
 
-	*dec += crypto_scalarmult_ristretto255( rhs, rhs, tmp->A); // xA
+	*dec += crypto_scalarmult_ristretto255( rhs, xp, tmp->A); // xA
 	*dec += crypto_core_ristretto255_sub( rhs, tmp->U, rhs); // U' - xA
 	*dec += crypto_scalarmult_ristretto255(rhs, tmp->c, rhs); // c(U' - xA)
 	*dec += crypto_core_ristretto255_add(rhs, tmp->NE, rhs);// T + c(U' - xA)
@@ -180,7 +181,7 @@ struct __chin15_pk *__chin15_pkinit(void){
 struct __chin15_sk *__chin15_skinit(void){
 	struct __chin15_sk *out;
 	out = (struct __chin15_sk *)malloc( sizeof(struct __chin15_sk) );
-	out->hf = 0;
+	out->hf = 0; //non hierarchical signature (this is a key)
 	out->a1 = (uint8_t *)sodium_malloc( RRS );
 	out->a2 = (uint8_t *)sodium_malloc( RRS );
 	out->pub = __chin15_pkinit();
@@ -323,12 +324,11 @@ void __chin15_sigvrf(
 	int *res
 ){
 	//key recast
-	uint8_t xp[RRS];
 	struct __chin15_pk *par = (struct __chin15_pk *)vpar;
 	struct __chin15_sg *sig = (struct __chin15_sg *)vsig;
 
-	uint8_t tmp1[RRE]; //tmp array
-	uint8_t tmp2[RRE]; //tmp array
+	//tmp arrays
+	uint8_t xp[RRS], tmp1[RRE], tmp2[RRE];
 
 	// U' = sB - A
 	*res = crypto_scalarmult_ristretto255_base(tmp1, sig->s1); //s1B
@@ -428,6 +428,7 @@ size_t __chin15_sgconstr(const uint8_t *in, void **out){
 }
 
 const ds_t __chin15 = {
+	.hier = 0, //non hierarchical
 	.skgen = __chin15_skgen,
 	.pkext = __chin15_pkext,
 	.siggen = __chin15_siggen,
@@ -464,16 +465,19 @@ const ibi_t chin15 = {
 
 // Hierarchical IBI implementation
 // TODO: vangujar's scheme is incomplete.
-/*
+// base chin15 sig, A, 2 byte for hnlen, and hl (1byte)
 
-struct __vangujar19_sg {
-	uint8_t hf;
-	uint8_t hl; //hier level: 0-root
-	uint8_t *A; //public stored here as well
-	void *d; //key (chin15 design)
-	uint8_t *hn; //hier name
-	size_t hnlen; //hier name length
-};
+size_t __vangujar19_sgserial(void *in, uint8_t *out){
+	struct __vangujar19_sg *ri = (struct __vangujar19_sg *)in; //recast the obj
+	out[0] = (ri->hnlen & 0x00ff); //hnlen
+	out[1] = (ri->hnlen & 0xff00) >> 8;
+	out[2] = ri->hl; //write hier level
+	size_t rs = 3; //3 byte used
+	rs += __chin15.sgserial((ri->d), (out+rs));
+	rs = copyskip( out, ri->A, 	rs, 	RRE);
+	rs = copyskip( out, ri->hn, 	rs, 	ri->hnlen);
+	return rs;
+}
 
 struct __vangujar19_sg *__vangujar19_sginit(size_t hnlen){
 	struct __vangujar19_sg *out;
@@ -485,9 +489,23 @@ struct __vangujar19_sg *__vangujar19_sginit(size_t hnlen){
 	return out;
 };
 
+size_t __vangujar19_sgconstr(const uint8_t *in, void **out){
+	size_t hnlen = (size_t)(in[0] | (in[1] << 8));
+	struct __vangujar19_sg *tmp = __vangujar19_sginit(hnlen);
+	tmp->hl = in[2];
+	size_t rs =3; //3 consumed
+	rs += __chin15.sgconstr( (in+rs), &(tmp->d) );
+	rs = skipcopy( tmp->A,		in, rs, RRE);
+	rs = skipcopy( tmp->hn,		in, rs,	tmp->hnlen);
+	*out = (void *) tmp;
+	return rs;
+}
+
 void __vangujar19_sgfree(void *in){
 	struct __vangujar19_sg *ri = (struct __vangujar19_sg *)in;
 	__chin15.sgfree( ri->d ); //free chin15 sig
+	free(ri->hn);
+	free(ri->A);
 	free(ri);
 }
 
@@ -500,6 +518,7 @@ void __vangujar19_siggen(
 	//declare and allocate for signature struct
 	struct __vangujar19_sg *tmp;
 
+	//TODO: ensure this is OK (reading the hf, is it consistent?)
 	if(!((uint8_t *)vkey)[0]) {
  		//key recast
 		struct __chin15_sk *key = (struct __chin15_sk *)vkey;
@@ -534,17 +553,12 @@ void __vangujar19_siggen(
 		rc += crypto_core_ristretto255_add(ri->U, ri->U, ri->B2);
 
 		__sodium_2rinhashexec(tmp->hn, tmp->hnlen, ri->U, key->A, ri->x);
-		printf("----U :"); ucbprint(ri->U, RRE); printf("\n");
-		printf("----A :"); ucbprint(key->A, RRE); printf("\n");
-		printf("----mb:%s\n", tmp->hn);
 
-		// s1 = r1 + xa1
-		crypto_core_ristretto255_scalar_add( ri->s1 , ri->x, rk->s1 );
-		crypto_core_ristretto255_scalar_add( ri->s1, ri->s1, nonce1 );
+		// s1 = n1 + bs1 + x
+		crypto_core_ristretto255_scalar_add( ri->s1, ri->x, nonce1 );
 
-		// s2 = r2 + xa2
-		crypto_core_ristretto255_scalar_add( ri->s2 , ri->x, rk->s2 );
-		crypto_core_ristretto255_scalar_add( ri->s2, ri->s2, nonce2 );
+		// s2 = n2 + bs2 + x
+		crypto_core_ristretto255_scalar_add( ri->s2, ri->x, nonce2 );
 		assert(rc == 0);
 
 		//store B2 and A on the signature
@@ -570,37 +584,132 @@ void __vangujar19_sigvrf(
 	if(sig->hl < 1){
 		__chin15.sigvrf(vpar, (void *)(sig->d), mbuf, mlen, res);
 	}else{
-		__chin15.sigvrf(vpar, (void *)(sig->d), sig->hn, sig->hnlen, res);
+		//key recast
+		struct __chin15_pk *par = (struct __chin15_pk *)vpar;
+		struct __chin15_sg *is = (struct __chin15_sg *)(sig->d);
+
+		uint8_t tmp1[RRE], tmp2[RRE], tmp3[RRE], xp[RRS];
+
+		// U' = sB - A
+		*res = crypto_scalarmult_ristretto255_base(tmp1, is->s1); //s1B
+		*res += crypto_scalarmult_ristretto255(tmp2, is->s2, is->B2); // s2B2
+		*res += crypto_core_ristretto255_add(tmp1, tmp1, tmp2); // (s1B + s2B2)
+
+		*res = crypto_scalarmult_ristretto255_base(tmp3, is->x); //xB
+		*res += crypto_scalarmult_ristretto255(tmp2, is->x, is->B2); // xB2
+		*res += crypto_core_ristretto255_add(tmp2, tmp2, tmp3); // (xB+xB2)
+
+		*res += crypto_core_ristretto255_sub(tmp1, tmp1, tmp2); // (s1B + s2B2)
+		__sodium_2rinhashexec(sig->hn, sig->hnlen, tmp1, par->A, xp);
+		*res += crypto_verify_32( xp, is->x );
+
+		// ensure last name in hn is same as mbuf
+		*res += strncmp(mbuf, (sig->hn+(sig->hnlen - mlen)), mlen );
 	}
 }
 
 void __vangujar19_sgprint(void *in){
 	struct __vangujar19_sg *ri = (struct __vangujar19_sg *)in;
+	char *str = (char *)calloc(ri->hnlen+1, 1);
+	memcpy(str, ri->hn, ri->hnlen);
+	str[ri->hnlen] = 0;
 	printf("hl:%u hnlen:%u\n", ri->hl, ri->hnlen);
-	printf("hn:%s\n", ri->hn);
+	printf("hn:%s\n", str);
+	free(str);
 	__chin15.sgprint(ri->d);
 	printf("A :"); ucbprint(ri->A, RRE); printf("\n");
 }
 
+size_t __vangujar19_fqnread(void *vusk, uint8_t **fqn){
+	struct __vangujar19_sg *usk = (struct __vangujar19_sg *)vusk;
+	size_t out = usk->hnlen;
+	*fqn = (uint8_t *)malloc(out);
+	memcpy( *fqn, usk->hn, out);
+	return out;
+}
+
 const ds_t __vangujar19 = {
+	.hier = 1, //is hierarchical
 	.skgen = __chin15_skgen,
 	.pkext = __chin15_pkext,
 	.siggen = __vangujar19_siggen, //hc
 	.sigvrf = __vangujar19_sigvrf, //hc
 	.skfree = __chin15_skfree,
 	.pkfree = __chin15_pkfree,
-	.sgfree = __chin15_sgfree,
+	.sgfree = __vangujar19_sgfree,
 	.skprint = __chin15_skprint,
 	.pkprint = __chin15_pkprint,
 	.sgprint = __vangujar19_sgprint,
 	.skserial = __chin15_skserial,
 	.pkserial = __chin15_pkserial,
-	.sgserial = __chin15_sgserial,
+	.sgserial = __vangujar19_sgserial,
 	.skconstr = __chin15_skconstr,
 	.pkconstr = __chin15_pkconstr,
-	.sgconstr = __chin15_sgconstr,
+	.sgconstr = __vangujar19_sgconstr,
 	.sklen = CHIN15_SKLEN,
 	.pklen = CHIN15_PKLEN,
-	.sglen = CHIN15_SGLEN,
+	.sglen = VANGUJAR19_SGBSLEN,
+	.fqnread = __vangujar19_fqnread,
 };
-*/
+
+//mbuf and mlen unused
+void __vangujar19_prvinit(void *vusk, const uint8_t *mbuf, size_t mlen, void **state){
+	struct __vangujar19_sg *usk = (struct __vangujar19_sg *)vusk;
+	struct __chin15_sg *iu = (struct __chin15_sg *)(usk->d);
+	struct __chin15_prvst *tmp; //use the same prover state
+	tmp = (struct __chin15_prvst *)malloc(sizeof(struct __chin15_prvst));
+
+	//copy secrets, vusk no longer needed
+	tmp->s1 = (uint8_t *)sodium_malloc(RRS);
+	tmp->s2 = (uint8_t *)sodium_malloc(RRS);
+	tmp->U  = (uint8_t *)malloc(RRE);
+	tmp->B2 = (uint8_t *)malloc(RRE);
+	memcpy( tmp->s1, iu->s1, RRS);
+	memcpy( tmp->s2, iu->s2, RRS);
+	memcpy( tmp->U,  iu->U, RRE);
+	memcpy( tmp->B2, iu->B2, RRE); //x is not copied as it is not needed
+
+	*state = (void *)tmp; //recast and return
+}
+
+//main decision function for protocol
+void __vangujar19_protdc(const uint8_t *res, void *state, int *dec){
+	struct __chin15_verst *tmp = (struct __chin15_verst *)(state); //parse state
+
+	uint8_t rhs[RRE], lhs[RRE], tbuf[RRE], xp[RRS];
+	__sodium_2rinhashexec(tmp->mbuf, tmp->mlen, tmp->U, tmp->A, xp);
+
+	// yB = T + c( U' - xP1 )
+	*dec = crypto_scalarmult_ristretto255_base( lhs, res); //y1B1
+	*dec += crypto_scalarmult_ristretto255( tbuf, res+RRS, tmp->B2); //y2B2
+	*dec += crypto_core_ristretto255_add( lhs, lhs, tbuf); // lhs :y1B1 + y2B2
+
+	*dec += crypto_scalarmult_ristretto255_base(rhs, xp); //xB
+	*dec += crypto_scalarmult_ristretto255(tbuf, xp, tmp->B2); // xB2
+	*dec += crypto_core_ristretto255_add(rhs, tbuf, rhs); // (xB+xB2)
+	*dec += crypto_core_ristretto255_add(rhs, tmp->U, rhs); // U + (xB+xB2)
+	*dec += crypto_scalarmult_ristretto255(rhs, tmp->c, rhs);
+
+	*dec += crypto_core_ristretto255_add(rhs, tmp->NE, rhs); // T + U + (xB+xB2)
+
+	//__chin15_verstfree(state);
+	*dec += crypto_verify_32(lhs, rhs);
+
+	//try default if fail
+	if(*dec != 0){
+		__chin15_protdc(res, state, dec);
+	}
+}
+
+const ibi_t vangujar19 = {
+	.ds = (ds_t *)&__vangujar19,
+	.prvinit = __vangujar19_prvinit, //proto
+	.cmtgen = __chin15_cmtgen,
+	.resgen = __chin15_resgen,
+	.verinit = __chin15_verinit,
+	.chagen = __chin15_chagen,
+	.protdc = __vangujar19_protdc,
+	.cmtlen = CHIN15_CMTLEN,
+	.chalen = CHIN15_CHALEN,
+	.reslen = CHIN15_RESLEN,
+};

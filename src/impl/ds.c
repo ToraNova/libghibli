@@ -191,6 +191,17 @@ void __ds_rprint(void *in){
 	impl->sgprint(tmp->s);
 }
 
+size_t __ds_fqnread(void *in, uint8_t **fqn){
+	ds_s_t *tmp = (ds_s_t *)in;
+	ds_t *impl = get_ds_impl(tmp->an);
+	if( impl->fqnread ){
+		return impl->fqnread(tmp->s, fqn);
+	}
+	// not implemented
+	*fqn = NULL;
+	return 0;
+}
+
 const ds_if_t ds = {
 	.keygen = __ds_keygen,
 	.kfree = __ds_kfree,
@@ -209,4 +220,5 @@ const ds_if_t ds = {
 	.kprint = __ds_kprint,
 	.rprint = __ds_rprint,
 	.rfree = __ds_rfree,
+	.fqnread = __ds_fqnread,
 };

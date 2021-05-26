@@ -57,7 +57,7 @@ void __heng04_prvstfree(void *state){
 	sodium_free(tmp->nonce);
 	memset(tmp->U, 0, RRE);//clear and free
 	free(tmp->U);
-	free(tmp->mbuf);
+	//free(tmp->mbuf);
 	free(tmp);
 }
 
@@ -71,15 +71,16 @@ void __heng04_verstfree(void *state){
 	free(tmp);
 }
 
+// mbuf and mlen unused
 void __heng04_prvinit(void *vusk, const uint8_t *mbuf, size_t mlen, void **state){
 	struct __schnorr91_sg *usk = (struct __schnorr91_sg *)vusk;
 	struct __heng04_prvst *tmp;
 	tmp = (struct __heng04_prvst *)malloc(sizeof(struct __heng04_prvst));
 
 	//allocate and copy for mbuf
-	tmp->mbuf = (uint8_t *)malloc(mlen);
-	tmp->mlen = mlen;
-	memcpy(tmp->mbuf, mbuf, mlen);
+	//tmp->mbuf = (uint8_t *)malloc(mlen);
+	//tmp->mlen = mlen;
+	//memcpy(tmp->mbuf, mbuf, mlen);
 
 	//copy secrets, vusk no longer needed
 	tmp->s = (uint8_t *)sodium_malloc(RRS);

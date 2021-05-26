@@ -33,7 +33,7 @@ int main(int argc, char *argv[]){
 
 	ghibc_init(); //uses whatev backend we use
 
-	for(int i=0;i<2;i++){
+	for(int i=0;i<3;i++){
 		printf("testing ibi-algo %d\n",i);
 		//gc.init(i);
 		for(int j=0;j<30;j++){
@@ -77,11 +77,22 @@ int main(int argc, char *argv[]){
 			gc.ibi->kfree(sk); sk = NULL; //free
 
 			blen = gc.ibi->userial(uk, buf, BL);
-			assert(blen == gc.ibi->ukbslen(i) + 64);
+			//TODO: please fix the checks for hier scheme
+			if(gc.ibi->ishier(i)){
+				// is hierarchical
+				assert(blen == gc.ibi->ukbslen(i) + 64*2);
+			}else{
+				assert(blen == gc.ibi->ukbslen(i) + 64);
+			}
 			gc.ibi->ufree(uk); uk = NULL;
 
 			blen = gc.ibi->uconstr(buf, blen, &uk);
-			assert(blen == gc.ibi->ukbslen(i) + 64);
+			if(gc.ibi->ishier(i)){
+				// is hierarchical
+				assert(blen == gc.ibi->ukbslen(i) + 64*2);
+			}else{
+				assert(blen == gc.ibi->ukbslen(i) + 64);
+			}
 			assert(gc.ibi->uaread(uk) == i);
 
 			gc.ibi->uiread(uk, (unsigned char **) (&aptr), &alen);

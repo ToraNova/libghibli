@@ -33,10 +33,17 @@ ibi_t *get_ibi_impl(uint8_t an){
 			return (ibi_t *) &heng04;
 		case 1:
 			return (ibi_t *) &chin15;
+		case 2:
+			return (ibi_t *) &vangujar19;
 		default:
 			assert(0); //error
 			return (ibi_t *) &heng04;
 	}
+}
+
+int __ibi_ishier(uint8_t an){
+	ds_t *impl = get_ibi_impl(an)->ds;
+	return impl->hier;
 }
 
 ibi_u_t *__ibi_uinit(uint8_t an, size_t mlen){
@@ -118,7 +125,10 @@ size_t __ibi_userial(void *in, uint8_t *out, size_t mblen){
 }
 
 size_t __ibi_uconstr(const uint8_t *in, size_t len, void **out){
-	ibi_u_t *ri = __ibi_uinit(in[0], (len - __ibi_ukbslen(in[0])));
+	size_t ul = (len - __ibi_ukbslen(in[0]));
+	ul = __ibi_ishier(in[0]) ? ul/2 : ul;
+
+	ibi_u_t *ri = __ibi_uinit(in[0], ul);
 	ds_t *impl = get_ibi_impl(ri->an)->ds; //get ds impl
 	size_t rs = 1; //first byte read
 	rs += impl->sgconstr(in+rs, &(ri->k));
@@ -262,6 +272,17 @@ void __ibi_kprint(void *in){
 	}
 }
 
+size_t __ibi_fqnread(void *in, uint8_t **fqn){
+	ds_s_t *tmp = (ds_s_t *)in;
+	ds_t *impl = get_ibi_impl(tmp->an)->ds;
+	if( impl->fqnread ){
+		return impl->fqnread(tmp->s, fqn);
+	}
+	// not implemented
+	*fqn = NULL;
+	return 0;
+}
+
 const ibi_if_t ibi = {
 	.setup = __ibi_keygen,
 	.issue = __ibi_ukgen,
@@ -293,4 +314,6 @@ const ibi_if_t ibi = {
 	.ukbslen = __ibi_ukbslen,
 	.kprint = __ibi_kprint,
 	.uprint = __ibi_uprint,
+	.fqnread = __ibi_fqnread,
+	.ishier = __ibi_ishier,
 };

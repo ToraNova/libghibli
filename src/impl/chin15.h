@@ -72,4 +72,14 @@ struct __chin15_verst {
 #define CHIN15_CHALEN RRS
 #define CHIN15_RESLEN (2*RRS)
 
+#define VANGUJAR19_SGBSLEN  (CHIN15_SGLEN + RRE + 2 + 1)
+struct __vangujar19_sg {
+	uint8_t hf;
+	uint8_t hl; //hier level: 0-root
+	size_t hnlen; //hier name length
+	uint8_t *A; //public stored here as well
+	uint8_t *hn; //hier name
+	void *d; //key (chin15 design)
+};
+
 #endif
